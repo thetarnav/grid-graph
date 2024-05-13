@@ -10,15 +10,19 @@ const GRID_ALL_CELLS = GRID_WIDTH * GRID_WIDTH
 
 function State() {
 	this.ctx           = /** @type {CanvasRenderingContext2D} */ (/** @type {*} */ (null))
-	this.canvas_top	   = 0
+	this.canvas_top    = 0
 	this.canvas_left   = 0
 	this.canvas_width  = 0
 	this.canvas_height = 0
 	this.window_width  = 0
 	this.window_height = 0
 	this.dpr           = 0
-	this.nodes		   = /** @type {Node[]} */         ([])
-	this.grid		   = /** @type {(Node | null)[]} */([])
+	this.mouse_x       = 0
+	this.mouse_y       = 0
+	this.mouse_down    = false
+	this.dragging  =   -1
+	this.nodes         = /** @type {Node[]} */         ([])
+	this.grid          = /** @type {(Node | null)[]} */([])
 }
 
 function Node() {
@@ -49,11 +53,57 @@ function new_id() {
 /**
  * @param {number} index
  * @returns {Vec2} */
-function index_to_vec(index) {
+function idx_num_to_vec(index) {
 	const vec = new Vec2()
 	vec.x = index % GRID_WIDTH
 	vec.y = Math.floor(index / GRID_WIDTH)
 	return vec
+}
+
+/**
+ * @param {Vec2} pos
+ * @returns {number} */
+function idx_vec_to_num(pos) {
+	return pos.y * GRID_WIDTH + pos.x
+}
+
+/**
+ * @param {State} s
+ * @param {Vec2 } pos
+ * @returns {number} */
+function pos_to_idx(s, pos) {
+	if (pos.x < 0 || pos.y < 0 || pos.x >= s.canvas_width || pos.y >= s.canvas_height) {
+		return -1
+	}
+	let x = Math.floor(pos.x / CELL_SIZE*s.dpr)
+	let y = Math.floor(pos.y / CELL_SIZE*s.dpr)
+	return y * GRID_WIDTH + x
+}
+
+
+/**
+ * @param {number} n
+ * @returns {string} */
+function num_string(n) {
+	let text = ""
+	if (n < 0) {
+		text += "-"
+		n = -n
+	} else {
+		text += "+"
+	}
+	if (n < 10) {
+		text += "0"
+	}
+	text += n.toFixed(2)
+	return text
+}
+
+/**
+ * @param {Vec2} v
+ * @returns {string} */
+function vec_string(v) {
+	return `${num_string(v.x)}, ${num_string(v.y)}`
 }
 
 /**
@@ -67,14 +117,35 @@ function frame(s, delta) {
 	s.ctx.clearRect(0, 0, width, height)
 	s.ctx.fillStyle = "black"
 	s.ctx.fillRect (0, 0, width, height)
-	s.ctx.fillStyle = "white"
-	s.ctx.fillText(`delta: ${delta}`, 10, 10)
+
+
+
+	// Drag
+
+	switch (true) {
+	case s.mouse_down && s.dragging === -1: {
+		let idx = pos_to_idx(s, {x: s.mouse_x, y: s.mouse_y})
+		if (s.grid[idx] !== null) {
+			s.dragging = idx
+		}
+		break
+	}
+	case s.mouse_down && s.dragging !== -1: {
+		// move node
+		break
+	}
+	case !s.mouse_down && s.dragging !== -1: {
+		s.dragging = -1
+		break
+	}
+	}
+
 
 	// Draw grid
 
 	for (let i = 0; i < GRID_ALL_CELLS; i += 1) {
 		let cell     = s.grid[i]
-		let cell_pos = index_to_vec(i)
+		let cell_pos = idx_num_to_vec(i)
 		let offset_x = cell_pos.x * CELL_SIZE
 		let offset_y = cell_pos.y * CELL_SIZE
 
@@ -94,6 +165,22 @@ function frame(s, delta) {
 			s.ctx.textBaseline = "middle"
 			s.ctx.fillText(cell.id, offset_x + CELL_SIZE/2, offset_y + CELL_SIZE/2)
 		}
+	}
+
+	// Debug
+
+	{
+		let margin = 10
+		let text_i = 0
+		s.ctx.fillStyle = "white"
+		s.ctx.font = "16px monospace"
+		s.ctx.textAlign = "left"
+		s.ctx.textBaseline = "top"
+		s.ctx.fillText(`delta:      ${num_string(delta)}`                              , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse:      ${num_string(s.mouse_x)}, ${num_string(s.mouse_y)}`, margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_idx:  ${pos_to_idx(s, {x: s.mouse_x, y: s.mouse_y})}`    , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_down: ${s.mouse_down}`                                   , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`dragging:   ${s.dragging}`                                     , margin, margin + (text_i++) * 20)
 	}
 }
 
@@ -160,6 +247,17 @@ function main() {
 	}
 	on_canvas_resize()
 	window.addEventListener("resize", on_canvas_resize)
+
+	window.addEventListener("pointermove", e => {
+		s.mouse_x = e.clientX - s.canvas_left
+		s.mouse_y = e.clientY - s.canvas_top
+	})
+	window.addEventListener("pointerdown", e => {
+		s.mouse_down = true
+	})
+	window.addEventListener("pointerup", e => {
+		s.mouse_down = false
+	})
 }
 main()
 
