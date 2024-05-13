@@ -20,6 +20,8 @@ function State() {
 	this.mouse         = new Vec2()
 	this.mouse_down    = false
 	this.drag_idx      = -1
+	this.dragging      = false // dragging bool is separate from drag_idx,
+	                           // because drag_idx is set to -1 when the drag is stopped for any reason
 	this.nodes         = /** @type {Node[]} */         ([])
 	this.grid          = /** @type {(Node | null)[]} */([])
 }
@@ -124,18 +126,23 @@ function frame(s, delta) {
 	let mouse_idx = pos_to_idx(s, s.mouse)
 
 	switch (true) {
-	case s.mouse_down && s.drag_idx === -1 && s.grid[mouse_idx] !== null:
+	case s.mouse_down && !s.dragging && s.grid[mouse_idx] !== null:
 		// start dragging
 		s.drag_idx = mouse_idx
+		s.dragging = true
 		break
-	case !s.mouse_down && s.drag_idx !== -1:
+	case !s.mouse_down && s.dragging:
 		// stop dragging
 		s.drag_idx = -1
+		s.dragging = false
 		break
-	case s.mouse_down && s.drag_idx !== -1:
-		// move node
-
-		{
+	case s.mouse_down && s.drag_idx !== -1 && s.drag_idx !== mouse_idx:
+		
+		if (mouse_idx === -1) {
+			// stop dragging that node
+			s.drag_idx = -1
+		} else {
+			// move node
 			let drag_node = s.grid[s.drag_idx]
 			console.assert(drag_node !== null)
 
@@ -152,6 +159,7 @@ function frame(s, delta) {
 
 	for (let i = 0; i < GRID_ALL_CELLS; i += 1) {
 		let cell     = s.grid[i]
+		console.assert(cell === null || cell instanceof Node)
 		let cell_pos = idx_num_to_vec(i)
 		let offset_x = cell_pos.x * CELL_SIZE
 		let offset_y = cell_pos.y * CELL_SIZE
@@ -215,14 +223,14 @@ function main() {
 
 	s.nodes = new Array(10)
 	for (let i = 0; i < s.nodes.length; i++) {
-		s.nodes[i] = make_node()
 
-		let index = 0
+		let grid_idx = 0
 		do {
-			index = Math.floor(Math.random() * GRID_ALL_CELLS)
-		} while (s.grid[index] !== null)
+			grid_idx = Math.floor(Math.random() * GRID_ALL_CELLS)
+		} while (s.grid[grid_idx] !== null)
 
-		s.grid[index] = s.nodes[i]
+		s.nodes[i] = make_node()
+		s.grid[grid_idx] = s.nodes[i]
 	}
 
 	void requestAnimationFrame(prev_time => {
