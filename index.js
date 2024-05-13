@@ -50,8 +50,8 @@ function new_id() {
 	let n  = last_id_count
 	do {
 		id = ALPHABET[n % ALPHABET.length] + id
-		n = Math.floor(n / ALPHABET.length)
-	} while (n > 0)
+		n = Math.floor(n / ALPHABET.length) - 1
+	} while (n >= 0)
 	last_id_count += 1
 	return id
 }
