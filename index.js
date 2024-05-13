@@ -8,31 +8,31 @@ const CELL_SIZE      = 100
 const GRID_WIDTH     = 12
 const GRID_ALL_CELLS = GRID_WIDTH * GRID_WIDTH
 
-function State() {
-	this.ctx           = /** @type {CanvasRenderingContext2D} */ (/** @type {*} */ (null))
-	this.canvas_top    = 0
-	this.canvas_left   = 0
-	this.canvas_width  = 0
-	this.canvas_height = 0
-	this.window_width  = 0
-	this.window_height = 0
-	this.dpr           = 0
-	this.mouse         = new Vec2()
-	this.mouse_down    = false
-	this.drag_idx      = -1
-	this.dragging      = false // dragging bool is separate from drag_idx,
+class State {
+	ctx           = /** @type {CanvasRenderingContext2D} */ (/** @type {*} */ (null))
+	canvas_top    = 0
+	canvas_left   = 0
+	canvas_width  = 0
+	canvas_height = 0
+	window_width  = 0
+	window_height = 0
+	dpr           = 0
+	mouse         = new Vec2()
+	mouse_down    = false
+	drag_idx      = -1
+	dragging      = false // dragging bool is separate from drag_idx,
 	                           // because drag_idx is set to -1 when the drag is stopped for any reason
-	this.nodes         = /** @type {Node[]} */         ([])
-	this.grid          = /** @type {(Node | null)[]} */([])
+	nodes         = /** @type {Node[]} */         ([])
+	grid          = /** @type {(Node | null)[]} */([])
 }
 
-function Node() {
-	this.id = ""
+class Node {
+	id = ""
 }
 
-function Vec2() {
-	this.x = 0
-	this.y = 0
+class Vec2 {
+	x = 0
+	y = 0
 }
 
 function make_node() {
