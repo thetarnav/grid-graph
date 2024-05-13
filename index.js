@@ -21,7 +21,7 @@ class State {
 	mouse_down    = false
 	drag_idx      = -1
 	dragging      = false // dragging bool is separate from drag_idx,
-	                           // because drag_idx is set to -1 when the drag is stopped for any reason
+	                      // because drag_idx is set to -1 when the drag is stopped for any reason
 	nodes         = /** @type {Node[]} */         ([])
 	grid          = /** @type {(Node | null)[]} */([])
 }
@@ -46,7 +46,12 @@ let last_id_count = 0
 
 /** @returns {string} */
 function new_id() {
-	const id = ALPHABET[last_id_count % ALPHABET.length]
+	let id = ""
+	let n  = last_id_count
+	do {
+		id = ALPHABET[n % ALPHABET.length] + id
+		n = Math.floor(n / ALPHABET.length)
+	} while (n > 0)
 	last_id_count += 1
 	return id
 }
@@ -221,7 +226,7 @@ function main() {
 
 	s.grid = new Array(GRID_ALL_CELLS).fill(null)
 
-	s.nodes = new Array(10)
+	s.nodes = new Array(16)
 	for (let i = 0; i < s.nodes.length; i++) {
 
 		let grid_idx = 0
