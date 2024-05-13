@@ -1,0 +1,28 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"lib": ["ESNext", "DOM"],
+		"newLine": "LF",
+		"types": [],
+
+		/* JS */
+		"allowJs": true,
+		"checkJs": true,
+		"skipLibCheck": false,
+		"maxNodeModuleJsDepth": 1,
+
+		/* Linting */
+		"strict": true,
+		"isolatedModules": true,
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"noFallthroughCasesInSwitch": true,
+		"verbatimModuleSyntax": true,
+		"useDefineForClassFields": true
+	},
+	"exclude": ["node_modules", "dist", "/types"]
+}
