@@ -17,10 +17,9 @@ function State() {
 	this.window_width  = 0
 	this.window_height = 0
 	this.dpr           = 0
-	this.mouse_x       = 0
-	this.mouse_y       = 0
+	this.mouse         = new Vec2()
 	this.mouse_down    = false
-	this.dragging  =   -1
+	this.drag_idx      = -1
 	this.nodes         = /** @type {Node[]} */         ([])
 	this.grid          = /** @type {(Node | null)[]} */([])
 }
@@ -122,22 +121,30 @@ function frame(s, delta) {
 
 	// Drag
 
+	let mouse_idx = pos_to_idx(s, s.mouse)
+
 	switch (true) {
-	case s.mouse_down && s.dragging === -1: {
-		let idx = pos_to_idx(s, {x: s.mouse_x, y: s.mouse_y})
-		if (s.grid[idx] !== null) {
-			s.dragging = idx
-		}
+	case s.mouse_down && s.drag_idx === -1 && s.grid[mouse_idx] !== null:
+		// start dragging
+		s.drag_idx = mouse_idx
 		break
-	}
-	case s.mouse_down && s.dragging !== -1: {
+	case !s.mouse_down && s.drag_idx !== -1:
+		// stop dragging
+		s.drag_idx = -1
+		break
+	case s.mouse_down && s.drag_idx !== -1:
 		// move node
+
+		{
+			let drag_node = s.grid[s.drag_idx]
+			console.assert(drag_node !== null)
+
+			s.grid[s.drag_idx] = s.grid[mouse_idx]
+			s.grid[mouse_idx]  = drag_node
+			s.drag_idx         = mouse_idx
+		}
+
 		break
-	}
-	case !s.mouse_down && s.dragging !== -1: {
-		s.dragging = -1
-		break
-	}
 	}
 
 
@@ -159,9 +166,9 @@ function frame(s, delta) {
 			s.ctx.beginPath()
 			s.ctx.fillRect(offset_x, offset_y, CELL_SIZE, CELL_SIZE)
 
-			s.ctx.fillStyle = WHITE
-			s.ctx.font = "24px sans-serif"
-			s.ctx.textAlign = "center"
+			s.ctx.fillStyle    = WHITE
+			s.ctx.font         = "24px sans-serif"
+			s.ctx.textAlign    = "center"
 			s.ctx.textBaseline = "middle"
 			s.ctx.fillText(cell.id, offset_x + CELL_SIZE/2, offset_y + CELL_SIZE/2)
 		}
@@ -172,15 +179,15 @@ function frame(s, delta) {
 	{
 		let margin = 10
 		let text_i = 0
-		s.ctx.fillStyle = "white"
-		s.ctx.font = "16px monospace"
-		s.ctx.textAlign = "left"
+		s.ctx.fillStyle    = WHITE
+		s.ctx.font         = "16px monospace"
+		s.ctx.textAlign    = "left"
 		s.ctx.textBaseline = "top"
-		s.ctx.fillText(`delta:      ${num_string(delta)}`                              , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`mouse:      ${num_string(s.mouse_x)}, ${num_string(s.mouse_y)}`, margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`mouse_idx:  ${pos_to_idx(s, {x: s.mouse_x, y: s.mouse_y})}`    , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`mouse_down: ${s.mouse_down}`                                   , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`dragging:   ${s.dragging}`                                     , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`delta:      ${num_string(delta)}`    , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse:      ${vec_string(s.mouse)}`  , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_idx:  ${mouse_idx}`            , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_down: ${s.mouse_down}`         , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`drag_idx:   ${s.drag_idx}`           , margin, margin + (text_i++) * 20)
 	}
 }
 
@@ -249,8 +256,8 @@ function main() {
 	window.addEventListener("resize", on_canvas_resize)
 
 	window.addEventListener("pointermove", e => {
-		s.mouse_x = e.clientX - s.canvas_left
-		s.mouse_y = e.clientY - s.canvas_top
+		s.mouse.x = e.clientX - s.canvas_left
+		s.mouse.y = e.clientY - s.canvas_top
 	})
 	window.addEventListener("pointerdown", e => {
 		s.mouse_down = true
