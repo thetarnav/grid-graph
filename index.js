@@ -1,16 +1,21 @@
 const TAO = 6.283185307179586
 
-const ORANGE = "#FFA500"
-const RED    = "#FF0000"
+const ORANGE = "#FFCD73"
+const RED    = "#E61400"
+const BLUE   = "#0050BE"
 const WHITE  = "#f6eee0"
 const BLACK  = "#000000"
 
 const CELL_SIZE      = 100
+const NODE_SIZE	     = 80
+const NODE_MARGIN	 = (CELL_SIZE - NODE_SIZE) / 2
 const GRID_WIDTH     = 12
 const GRID_ALL_CELLS = GRID_WIDTH * GRID_WIDTH
 
+/** @typedef {CanvasRenderingContext2D} Ctx2D */
+
 class State {
-	ctx           = /** @type {CanvasRenderingContext2D} */ (/** @type {*} */ (null))
+	ctx           = /** @type {Ctx2D} */ (/** @type {*} */ (null))
 	canvas_top    = 0
 	canvas_left   = 0
 	canvas_width  = 0
@@ -115,6 +120,24 @@ function vec_string(v) {
 }
 
 /**
+ * @param {Ctx2D}  ctx
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {number} radius
+ * @returns {void} */
+function draw_box_rounded(ctx, x, y, w, h, radius) {
+	ctx.beginPath()
+	ctx.moveTo(x + radius, y)
+	ctx.arcTo(x + w, y, x + w, y + h, radius)
+	ctx.arcTo(x + w, y + h, x, y + h, radius)
+	ctx.arcTo(x, y + h, x, y, radius)
+	ctx.arcTo(x, y, x + w, y, radius)
+	ctx.fill()
+}
+
+/**
  * @param {State } s 
  * @param {number} delta 
  */
@@ -195,11 +218,11 @@ function frame(s, delta) {
 		s.ctx.fill()
 
 		if (cell !== null) {
-			s.ctx.fillStyle = RED
-			s.ctx.beginPath()
-			s.ctx.fillRect(offset_x, offset_y, CELL_SIZE, CELL_SIZE)
+			let is_dragged = s.drag_idx === i
+			s.ctx.fillStyle = is_dragged ? BLUE : RED
+			draw_box_rounded(s.ctx, offset_x + NODE_MARGIN, offset_y + NODE_MARGIN, NODE_SIZE, NODE_SIZE, 10)
 
-			s.ctx.fillStyle    = BLACK
+			s.ctx.fillStyle    = WHITE
 			s.ctx.font         = "24px sans-serif"
 			s.ctx.textAlign    = "center"
 			s.ctx.textBaseline = "middle"
@@ -220,6 +243,15 @@ function frame(s, delta) {
 		s.ctx.fillText(`mouse_idx:  ${mouse_idx}`            , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_down: ${s.mouse_down}`         , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`drag_idx:   ${s.drag_idx}`           , margin, margin + (text_i++) * 20)
+
+		let swaps_text = "swaps:      "
+		if (s.swaps.length === 0) {
+			swaps_text += "none"
+		}
+		for (let i = 0; i < s.swaps.length; i++) {
+			swaps_text += `[${s.swaps[i][0]}, ${s.swaps[i][1]}] `
+		}
+		s.ctx.fillText(swaps_text, margin, margin + (text_i++) * 20)
 	}
 }
 
