@@ -49,6 +49,21 @@ function vec2_sum(a, b) {
 }
 /**
  * @param {Vec2} a
+ * @param {number} b
+ * @returns {void} */
+function vec2_add_scalar(a, b) {
+	a.x += b
+	a.y += b
+}
+/**
+ * @param {Vec2} a
+ * @param {number} b
+ * @returns {Vec2} */
+function vec2_sum_scalar(a, b) {
+	return vec2(a.x + b, a.y + b)
+}
+/**
+ * @param {Vec2} a
  * @param {Vec2} b
  * @returns {void} */
 function vec2_sub(a, b) {
@@ -314,15 +329,16 @@ function frame(s, delta) {
 	// Draw grid dots
 
 	for (let i = 0; i < GRID_ALL_CELLS; i += 1) {
-		let cell     = s.grid[i]
+		let cell = s.grid[i]
 		console.assert(cell === null || cell instanceof Node)
+
 		let cell_pos = idx_num_to_vec(i)
-		let offset_x = cell_pos.x * CELL_SIZE
-		let offset_y = cell_pos.y * CELL_SIZE
+		let offset = vec2_prod_scalar(cell_pos, CELL_SIZE)
+		vec2_add_scalar(offset, CELL_SIZE/2)
 
 		s.ctx.fillStyle = ORANGE
 		s.ctx.beginPath()
-		s.ctx.arc(offset_x + CELL_SIZE/2, offset_y + CELL_SIZE/2, 6, 0, TAO)
+		s.ctx.arc(offset.x, offset.y, 6, 0, TAO)
 		s.ctx.fill()
 	}
 
@@ -338,11 +354,6 @@ function frame(s, delta) {
 		let diff         = vec2_diff(goal_pos, node.pos)
 		vec2_mul_scalar(diff, 0.22)
 		vec2_add(node.pos, diff)
-
-		s.ctx.fillStyle = ORANGE
-		s.ctx.beginPath()
-		s.ctx.arc(node.pos.x + CELL_SIZE/2, node.pos.y + CELL_SIZE/2, 6, 0, TAO)
-		s.ctx.fill()
 
 		let is_dragged = s.drag_idx === node.idx
 		s.ctx.fillStyle = is_dragged ? BLUE : RED
