@@ -186,9 +186,9 @@ function frame(s, delta) {
 			// try to reduce changing positins of other nodes while dragging
 			// previous swaps will be undone, if the space is now free
 
-			for (let i = s.swaps_len - 1; i >= 0; i -= 2) {
-				let from = s.swaps[i]
-				let to   = s.swaps[i + 1]
+			for (let i = s.swaps_len - 2; i >= 0; i -= 2) {
+				let from = s.swaps[i+0]
+				let to   = s.swaps[i+1]
 				if (s.grid[to] === null) {
 					s.grid[to]   = s.grid[from]
 					s.grid[from] = null
@@ -197,8 +197,8 @@ function frame(s, delta) {
 			}
 
 			if (mouse_node !== null) {
-				s.swaps[s.swaps_len+0] = mouse_idx
-				s.swaps[s.swaps_len+1] = drag_idx
+				s.swaps[s.swaps_len+0] = drag_idx
+				s.swaps[s.swaps_len+1] = mouse_idx
 				s.swaps_len += 2
 			}
 		}
