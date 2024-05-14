@@ -12,6 +12,109 @@ const NODE_MARGIN	 = (CELL_SIZE - NODE_SIZE) / 2
 const GRID_WIDTH     = 12
 const GRID_ALL_CELLS = GRID_WIDTH * GRID_WIDTH
 
+class Vec2 {
+	x = 0
+	y = 0
+}
+/**
+ * @param {number} x 
+ * @param {number} y 
+ * @returns {Vec2} */
+function vec2(x, y) {
+	var v = new Vec2()
+	v.x = x
+	v.y = y
+	return v
+}
+/**
+ * @param {Vec2} v
+ * @returns {Vec2} */
+function vec2_copy(v) {
+	return vec2(v.x, v.y)
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {void} */
+function vec2_add(a, b) {
+	a.x += b.x
+	a.y += b.y
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {Vec2} */
+function vec2_sum(a, b) {
+	return vec2(a.x + b.x, a.y + b.y)
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {void} */
+function vec2_sub(a, b) {
+	a.x -= b.x
+	a.y -= b.y
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {Vec2} */
+function vec2_diff(a, b) {
+	return vec2(a.x - b.x, a.y - b.y)
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {void} */
+function vec2_mul(a, b) {
+	a.x *= b.x
+	a.y *= b.y
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {Vec2} */
+function vec2_product(a, b) {
+	return vec2(a.x * b.x, a.y * b.y)
+}
+/**
+ * @param {Vec2}   a
+ * @param {number} b
+ * @returns {void} */
+function vec2_mul_scalar(a, b) {
+	a.x *= b
+	a.y *= b
+}
+/**
+ * @param {Vec2}   a
+ * @param {number} b
+ * @returns {Vec2} */
+function vec2_product_scalar(a, b) {
+	return vec2(a.x * b, a.y * b)
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {void} */
+function vec2_div(a, b) {
+	a.x /= b.x
+	a.y /= b.y
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {Vec2} */
+function vec2_quotient(a, b) {
+	return vec2(a.x / b.x, a.y / b.y)
+}
+/**
+ * @param {Vec2} v
+ * @returns {void} */
+function vec2_negate(v) {
+	v.x = -v.x
+	v.y = -v.y
+}
+
 /** @typedef {CanvasRenderingContext2D} Ctx2D */
 
 class State {
@@ -35,12 +138,9 @@ class State {
 }
 
 class Node {
-	id = ""
-}
-
-class Vec2 {
-	x = 0
-	y = 0
+	id  = ""
+	pos = new Vec2()
+	idx = -1
 }
 
 function make_node() {
@@ -181,7 +281,8 @@ function frame(s, delta) {
 			s.grid[mouse_idx] = drag_node
 			s.drag_idx        = mouse_idx
 
-			console.assert(drag_node !== null)
+			console.assert(drag_node !== null);
+			/** @type {Node} */(drag_node).idx = mouse_idx
 
 			// try to reduce changing positins of other nodes while dragging
 			// previous swaps will be undone, if the space is now free
@@ -191,6 +292,8 @@ function frame(s, delta) {
 				let to   = s.swaps[i+1]
 				if (s.grid[to] === null) {
 					s.grid[to]   = s.grid[from]
+					console.assert(s.grid[to] !== null);
+					/** @type {Node} */ (s.grid[to]).idx = to
 					s.grid[from] = null
 					s.swaps_len -= 2
 				}
@@ -200,6 +303,7 @@ function frame(s, delta) {
 				s.swaps[s.swaps_len+0] = drag_idx
 				s.swaps[s.swaps_len+1] = mouse_idx
 				s.swaps_len += 2
+				mouse_node.idx = drag_idx
 			}
 		}
 
@@ -207,7 +311,7 @@ function frame(s, delta) {
 	}
 
 
-	// Draw grid
+	// Draw grid dots
 
 	for (let i = 0; i < GRID_ALL_CELLS; i += 1) {
 		let cell     = s.grid[i]
@@ -220,18 +324,34 @@ function frame(s, delta) {
 		s.ctx.beginPath()
 		s.ctx.arc(offset_x + CELL_SIZE/2, offset_y + CELL_SIZE/2, 6, 0, TAO)
 		s.ctx.fill()
+	}
 
-		if (cell !== null) {
-			let is_dragged = s.drag_idx === i
-			s.ctx.fillStyle = is_dragged ? BLUE : RED
-			draw_box_rounded(s.ctx, offset_x + NODE_MARGIN, offset_y + NODE_MARGIN, NODE_SIZE, NODE_SIZE, 10)
+	s.ctx.font         = "24px sans-serif"
+	s.ctx.textAlign    = "center"
+	s.ctx.textBaseline = "middle"
 
-			s.ctx.fillStyle    = WHITE
-			s.ctx.font         = "24px sans-serif"
-			s.ctx.textAlign    = "center"
-			s.ctx.textBaseline = "middle"
-			s.ctx.fillText(cell.id, offset_x + CELL_SIZE/2, offset_y + CELL_SIZE/2)
-		}
+	for (const node of s.nodes) {
+		console.assert(node.idx !== -1)
+
+		let goal_idx_vec = idx_num_to_vec(node.idx)
+		let goal_pos     = vec2_product_scalar(goal_idx_vec, CELL_SIZE)
+		let diff         = vec2_diff(goal_pos, node.pos)
+
+		let speed = 0.22
+		node.pos.x += diff.x * speed
+		node.pos.y += diff.y * speed
+
+		s.ctx.fillStyle = ORANGE
+		s.ctx.beginPath()
+		s.ctx.arc(node.pos.x + CELL_SIZE/2, node.pos.y + CELL_SIZE/2, 6, 0, TAO)
+		s.ctx.fill()
+
+		let is_dragged = s.drag_idx === node.idx
+		s.ctx.fillStyle = is_dragged ? BLUE : RED
+		draw_box_rounded(s.ctx, node.pos.x + NODE_MARGIN, node.pos.y + NODE_MARGIN, NODE_SIZE, NODE_SIZE, 10)
+
+		s.ctx.fillStyle = WHITE
+		s.ctx.fillText(node.id, node.pos.x + CELL_SIZE/2, node.pos.y + CELL_SIZE/2)
 	}
 
 	// Debug
@@ -289,7 +409,11 @@ function main() {
 			grid_idx = Math.floor(Math.random() * GRID_ALL_CELLS)
 		} while (s.grid[grid_idx] !== null)
 
-		s.nodes[i] = make_node()
+		let node = make_node()
+		node.idx = grid_idx
+		node.pos.x = idx_num_to_vec(grid_idx).x * CELL_SIZE
+		node.pos.y = idx_num_to_vec(grid_idx).y * CELL_SIZE
+		s.nodes[i] = node
 		s.grid[grid_idx] = s.nodes[i]
 	}
 
