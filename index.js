@@ -23,10 +23,9 @@ class State {
 	drag_idx      = -1
 	dragging      = false // dragging bool is separate from drag_idx,
 	                      // because drag_idx is set to -1 when the drag is stopped for any reason
-	swap_from	  = -1
-	swap_to	      = -1
-	nodes         = /** @type {Node[]} */         ([])
-	grid          = /** @type {(Node | null)[]} */([])
+	swaps		  = /** @type {[number, number][]} */([])
+	nodes         = /** @type {Node[]} */            ([])
+	grid          = /** @type {(Node | null)[]} */   ([])
 }
 
 class Node {
@@ -139,10 +138,9 @@ function frame(s, delta) {
 		break
 	case !s.mouse_down && s.dragging:
 		// stop dragging
-		s.drag_idx  = -1
-		s.dragging  = false
-		s.swap_from = -1
-		s.swap_to   = -1
+		s.drag_idx     = -1
+		s.dragging     = false
+		s.swaps.length = 0
 		break
 	case s.mouse_down && s.drag_idx !== -1 && s.drag_idx !== mouse_idx:
 		
@@ -162,18 +160,19 @@ function frame(s, delta) {
 			console.assert(drag_node !== null)
 
 			// try to reduce changing positins of other nodes while dragging
-			// previous swap will be undone, if the space is now free
-			if (s.swap_to !== -1 && s.swap_from !== -1 && s.grid[s.swap_to] === null) {
-				s.grid[s.swap_to]   = s.grid[s.swap_from]
-				s.grid[s.swap_from] = null
+			// previous swaps will be undone, if the space is now free
+
+			for (let i = s.swaps.length - 1; i >= 0; i -= 1) {
+				let [from, to] = s.swaps[i]
+				if (s.grid[to] === null) {
+					s.grid[to]   = s.grid[from]
+					s.grid[from] = null
+					s.swaps.pop()
+				}
 			}
 
-			if (mouse_node !== null && s.swap_from !== mouse_idx) {
-				s.swap_from = drag_idx
-				s.swap_to   = mouse_idx
-			} else {
-				s.swap_from = -1
-				s.swap_to   = -1
+			if (mouse_node !== null) {
+				s.swaps.push([drag_idx, mouse_idx])
 			}
 		}
 
