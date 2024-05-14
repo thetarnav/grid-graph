@@ -39,6 +39,11 @@ p, h1, h2, h3, h4, h5, h6 {
 	isolation: isolate;
 }
 
+body {
+	font-family: 'Roboto', sans-serif;
+	background-color: #f6eee0
+}
+
 /*
 STYLES
 */
@@ -48,4 +53,5 @@ canvas {
 	left: 10%;
 	width: 80%;
 	height: 80%;
+	border: 1px solid #000;
 }

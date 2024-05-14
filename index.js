@@ -2,7 +2,8 @@ const TAO = 6.283185307179586
 
 const ORANGE = "#FFA500"
 const RED    = "#FF0000"
-const WHITE  = "#FFFFFF"
+const WHITE  = "#f6eee0"
+const BLACK  = "#000000"
 
 const CELL_SIZE      = 100
 const GRID_WIDTH     = 12
@@ -121,8 +122,6 @@ function frame(s, delta) {
 	let height = s.canvas_height * s.dpr
 
 	s.ctx.clearRect(0, 0, width, height)
-	s.ctx.fillStyle = "black"
-	s.ctx.fillRect (0, 0, width, height)
 
 
 
@@ -179,7 +178,7 @@ function frame(s, delta) {
 			s.ctx.beginPath()
 			s.ctx.fillRect(offset_x, offset_y, CELL_SIZE, CELL_SIZE)
 
-			s.ctx.fillStyle    = WHITE
+			s.ctx.fillStyle    = BLACK
 			s.ctx.font         = "24px sans-serif"
 			s.ctx.textAlign    = "center"
 			s.ctx.textBaseline = "middle"
@@ -192,11 +191,10 @@ function frame(s, delta) {
 	{
 		let margin = 10
 		let text_i = 0
-		s.ctx.fillStyle    = WHITE
+		s.ctx.fillStyle    = BLACK
 		s.ctx.font         = "16px monospace"
 		s.ctx.textAlign    = "left"
 		s.ctx.textBaseline = "top"
-		s.ctx.fillText(`delta:      ${num_string(delta)}`    , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse:      ${vec_string(s.mouse)}`  , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_idx:  ${mouse_idx}`            , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_down: ${s.mouse_down}`         , margin, margin + (text_i++) * 20)
