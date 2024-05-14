@@ -74,7 +74,7 @@ function vec2_mul(a, b) {
  * @param {Vec2} a
  * @param {Vec2} b
  * @returns {Vec2} */
-function vec2_product(a, b) {
+function vec2_prod(a, b) {
 	return vec2(a.x * b.x, a.y * b.y)
 }
 /**
@@ -89,7 +89,7 @@ function vec2_mul_scalar(a, b) {
  * @param {Vec2}   a
  * @param {number} b
  * @returns {Vec2} */
-function vec2_product_scalar(a, b) {
+function vec2_prod_scalar(a, b) {
 	return vec2(a.x * b, a.y * b)
 }
 /**
@@ -334,12 +334,10 @@ function frame(s, delta) {
 		console.assert(node.idx !== -1)
 
 		let goal_idx_vec = idx_num_to_vec(node.idx)
-		let goal_pos     = vec2_product_scalar(goal_idx_vec, CELL_SIZE)
+		let goal_pos     = vec2_prod_scalar(goal_idx_vec, CELL_SIZE)
 		let diff         = vec2_diff(goal_pos, node.pos)
-
-		let speed = 0.22
-		node.pos.x += diff.x * speed
-		node.pos.y += diff.y * speed
+		vec2_mul_scalar(diff, 0.22)
+		vec2_add(node.pos, diff)
 
 		s.ctx.fillStyle = ORANGE
 		s.ctx.beginPath()
