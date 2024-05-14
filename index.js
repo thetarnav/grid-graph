@@ -28,9 +28,10 @@ class State {
 	drag_idx      = -1
 	dragging      = false // dragging bool is separate from drag_idx,
 	                      // because drag_idx is set to -1 when the drag is stopped for any reason
-	swaps		  = /** @type {[number, number][]} */([])
-	nodes         = /** @type {Node[]} */            ([])
-	grid          = /** @type {(Node | null)[]} */   ([])
+	swaps         = /** @type {number[]} */        (new Array(100))
+	swaps_len     = 0
+	nodes         = /** @type {Node[]} */          ([])
+	grid          = /** @type {(Node | null)[]} */ ([])
 }
 
 class Node {
@@ -161,9 +162,9 @@ function frame(s, delta) {
 		break
 	case !s.mouse_down && s.dragging:
 		// stop dragging
-		s.drag_idx     = -1
-		s.dragging     = false
-		s.swaps.length = 0
+		s.drag_idx  = -1
+		s.dragging  = false
+		s.swaps_len = 0
 		break
 	case s.mouse_down && s.drag_idx !== -1 && s.drag_idx !== mouse_idx:
 		
@@ -185,17 +186,20 @@ function frame(s, delta) {
 			// try to reduce changing positins of other nodes while dragging
 			// previous swaps will be undone, if the space is now free
 
-			for (let i = s.swaps.length - 1; i >= 0; i -= 1) {
-				let [from, to] = s.swaps[i]
+			for (let i = s.swaps_len - 1; i >= 0; i -= 2) {
+				let from = s.swaps[i]
+				let to   = s.swaps[i + 1]
 				if (s.grid[to] === null) {
 					s.grid[to]   = s.grid[from]
 					s.grid[from] = null
-					s.swaps.pop()
+					s.swaps_len -= 2
 				}
 			}
 
 			if (mouse_node !== null) {
-				s.swaps.push([drag_idx, mouse_idx])
+				s.swaps[s.swaps_len+0] = mouse_idx
+				s.swaps[s.swaps_len+1] = drag_idx
+				s.swaps_len += 2
 			}
 		}
 
@@ -245,11 +249,11 @@ function frame(s, delta) {
 		s.ctx.fillText(`drag_idx:   ${s.drag_idx}`           , margin, margin + (text_i++) * 20)
 
 		let swaps_text = "swaps:      "
-		if (s.swaps.length === 0) {
+		if (s.swaps_len === 0) {
 			swaps_text += "none"
 		}
-		for (let i = 0; i < s.swaps.length; i++) {
-			swaps_text += `[${s.swaps[i][0]}, ${s.swaps[i][1]}] `
+		for (let i = 0; i < s.swaps_len; i += 2) {
+			swaps_text += `${s.swaps[i]}->${s.swaps[i+1]} `
 		}
 		s.ctx.fillText(swaps_text, margin, margin + (text_i++) * 20)
 	}
