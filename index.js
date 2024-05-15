@@ -12,6 +12,14 @@ const NODE_MARGIN	 = (CELL_SIZE - NODE_SIZE) / 2
 const GRID_WIDTH     = 12
 const GRID_ALL_CELLS = GRID_WIDTH * GRID_WIDTH
 
+/**
+ * @param   {number} min inclusive
+ * @param   {number} max exclusive
+ * @returns {number} */
+function random_int(min, max) {
+	return Math.floor(Math.random() * (max - min) + min)
+}
+
 class Vec2 {
 	x = 0
 	y = 0
@@ -150,6 +158,7 @@ class State {
 	swaps_len     = 0
 	nodes         = /** @type {Node[]} */          ([])
 	grid          = /** @type {(Node | null)[]} */ ([])
+	edges         = /** @type {Edge[]} */          ([])
 }
 
 class Node {
@@ -157,11 +166,34 @@ class Node {
 	pos = new Vec2()
 	idx = -1
 }
-
 function make_node() {
 	const node = new Node()
 	node.id = new_id()
 	return node
+}
+
+class Edge {
+	a = new Node()
+	b = new Node()
+}
+/**
+ * @param   {Node} a
+ * @param   {Node} b
+ * @returns {Edge} */
+function edge(a, b) {
+	let e = new Edge()
+	e.a = a
+	e.b = b
+	return e
+}
+/**
+ * @param   {State} s
+ * @param   {Node}  a
+ * @param   {Node}  b
+ * @returns {void}  */
+function connect_nodes(s, a, b) {
+	let e = edge(a, b)
+	s.edges.push(e)
 }
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -263,8 +295,6 @@ function frame(s, delta) {
 
 	s.ctx.clearRect(0, 0, width, height)
 
-
-
 	// Drag
 
 	let mouse_idx = pos_to_idx(s, s.mouse)
@@ -342,11 +372,29 @@ function frame(s, delta) {
 		s.ctx.fill()
 	}
 
+	// Draw edges
+
+	s.ctx.strokeStyle = BLACK
+	s.ctx.lineWidth   = 4
+	s.ctx.lineCap     = "round"
+
+	for (let edge of s.edges) {
+		let a_pos = vec2_sum_scalar(edge.a.pos, CELL_SIZE/2)
+		let b_pos = vec2_sum_scalar(edge.b.pos, CELL_SIZE/2)
+
+		s.ctx.beginPath()
+		s.ctx.moveTo(a_pos.x, a_pos.y)
+		s.ctx.bezierCurveTo(a_pos.x, b_pos.y, b_pos.x, a_pos.y, b_pos.x, b_pos.y)
+		s.ctx.stroke()
+	}
+
+	// Draw nodes
+
 	s.ctx.font         = "24px sans-serif"
 	s.ctx.textAlign    = "center"
 	s.ctx.textBaseline = "middle"
 
-	for (const node of s.nodes) {
+	for (let node of s.nodes) {
 		console.assert(node.idx !== -1)
 
 		let goal_idx_vec = idx_num_to_vec(node.idx)
@@ -411,12 +459,11 @@ function main() {
 	s.grid = new Array(GRID_ALL_CELLS).fill(null)
 
 	s.nodes = new Array(16)
-	for (let i = 0; i < s.nodes.length; i++) {
+	for (let i = 0; i < s.nodes.length; i += 1) {
 
 		let grid_idx = 0
-		do {
-			grid_idx = Math.floor(Math.random() * GRID_ALL_CELLS)
-		} while (s.grid[grid_idx] !== null)
+		do grid_idx = random_int(0, GRID_ALL_CELLS)
+		while (s.grid[grid_idx] !== null)
 
 		let node = make_node()
 		node.idx = grid_idx
@@ -424,6 +471,13 @@ function main() {
 		node.pos.y = idx_num_to_vec(grid_idx).y * CELL_SIZE
 		s.nodes[i] = node
 		s.grid[grid_idx] = s.nodes[i]
+	}
+
+	for (let i = 0; i < 12; i += 1) {
+		let a_idx = random_int(0, s.nodes.length-1)
+		let b_idx = random_int(a_idx+1, s.nodes.length)
+
+		connect_nodes(s, s.nodes[a_idx], s.nodes[b_idx])
 	}
 
 	void requestAnimationFrame(prev_time => {
