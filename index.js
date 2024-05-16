@@ -233,12 +233,33 @@ function idx_vec_to_num(pos) {
  * @param {Vec2 } pos
  * @returns {number} */
 function pos_to_idx(s, pos) {
-	if (pos.x < 0 || pos.y < 0 || pos.x >= s.canvas_width || pos.y >= s.canvas_height) {
+	let x = Math.floor(pos.x / CELL_SIZE * s.dpr)
+	if (x < 0 || x >= GRID_WIDTH) {
 		return -1
 	}
-	let x = Math.floor(pos.x / CELL_SIZE*s.dpr)
-	let y = Math.floor(pos.y / CELL_SIZE*s.dpr)
+	let y = Math.floor(((pos.y* s.dpr) - (x+1) % 2 * CELL_SIZE/2) / CELL_SIZE )
+	if (y < 0 || y >= GRID_WIDTH) {
+		return -1
+	}
 	return y * GRID_WIDTH + x
+}
+
+/**
+ * @param   {Vec2} idx
+ * @returns {Vec2} */
+function idx_vec_to_pos(idx) {
+	const pos = vec2_prod_scalar(idx, CELL_SIZE)
+	pos.y += CELL_SIZE/2 * ((idx.x+1) % 2)
+	return pos
+}
+/**
+ * @param   {number} idx
+ * @returns {Vec2}   */
+function idx_num_to_pos(idx) {
+	const pos = idx_num_to_vec(idx)
+	vec2_mul_scalar(pos, CELL_SIZE)
+	pos.y += CELL_SIZE/2 * ((idx % GRID_WIDTH + 1) % 2)
+	return pos
 }
 
 
@@ -362,8 +383,7 @@ function frame(s, delta) {
 		let cell = s.grid[i]
 		console.assert(cell === null || cell instanceof Node)
 
-		let cell_pos = idx_num_to_vec(i)
-		let offset = vec2_prod_scalar(cell_pos, CELL_SIZE)
+		let offset = idx_num_to_pos(i)
 		vec2_add_scalar(offset, CELL_SIZE/2)
 
 		s.ctx.fillStyle = ORANGE
@@ -397,9 +417,8 @@ function frame(s, delta) {
 	for (let node of s.nodes) {
 		console.assert(node.idx !== -1)
 
-		let goal_idx_vec = idx_num_to_vec(node.idx)
-		let goal_pos     = vec2_prod_scalar(goal_idx_vec, CELL_SIZE)
-		let diff         = vec2_diff(goal_pos, node.pos)
+		let goal = idx_num_to_pos(node.idx)
+		let diff = vec2_diff(goal, node.pos)
 		vec2_mul_scalar(diff, 0.22)
 		vec2_add(node.pos, diff)
 
@@ -467,8 +486,7 @@ function main() {
 
 		let node = make_node()
 		node.idx = grid_idx
-		node.pos.x = idx_num_to_vec(grid_idx).x * CELL_SIZE
-		node.pos.y = idx_num_to_vec(grid_idx).y * CELL_SIZE
+		node.pos = idx_num_to_pos(grid_idx)
 		s.nodes[i] = node
 		s.grid[grid_idx] = s.nodes[i]
 	}
