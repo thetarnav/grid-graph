@@ -7,7 +7,7 @@ const WHITE  = "#f6eee0"
 const BLACK  = "#000000"
 
 const CELL_SIZE      = 100
-const NODE_SIZE	     = 80
+const NODE_SIZE	     = 70
 const NODE_MARGIN	 = (CELL_SIZE - NODE_SIZE) / 2
 const GRID_WIDTH     = 12
 const GRID_ALL_CELLS = GRID_WIDTH * GRID_WIDTH
@@ -404,7 +404,7 @@ function frame(s, delta) {
 
 		s.ctx.beginPath()
 		s.ctx.moveTo(a_pos.x, a_pos.y)
-		s.ctx.bezierCurveTo(a_pos.x, b_pos.y, b_pos.x, a_pos.y, b_pos.x, b_pos.y)
+		s.ctx.bezierCurveTo(b_pos.x, a_pos.y, a_pos.x, b_pos.y, b_pos.x, b_pos.y)
 		s.ctx.stroke()
 	}
 
