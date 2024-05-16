@@ -1,4 +1,4 @@
-const TAO = 6.283185307179586
+const TAU = 6.283185307179586
 
 const ORANGE = "#FFCD73"
 const RED    = "#E61400"
@@ -415,7 +415,7 @@ function frame(s, delta) {
 
 		s.ctx.fillStyle = ORANGE
 		s.ctx.beginPath()
-		s.ctx.arc(offset.x, offset.y, 6, 0, TAO)
+		s.ctx.arc(offset.x, offset.y, 6, 0, TAU)
 		s.ctx.fill()
 	}
 
