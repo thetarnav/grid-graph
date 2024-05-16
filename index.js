@@ -13,6 +13,33 @@ const GRID_WIDTH     = 12
 const GRID_ALL_CELLS = GRID_WIDTH * GRID_WIDTH
 
 /**
+ * @param   {number} a 
+ * @param   {number} b 
+ * @returns {number} */
+function remainder(a, b) {
+	return ((a % b) + b) % b
+}
+/**
+ * @param   {number} value 
+ * @param   {number} min 
+ * @param   {number} max 
+ * @returns {number} */
+function wrap(value, min, max) {
+	return remainder(value - min, max - min) + min
+}
+/**
+ * @param   {number} value 
+ * @param   {number} min 
+ * @param   {number} max 
+ * @returns {number} */
+function bounce(value, min, max) {
+	const range = max - min,
+		rem = wrap(value - min, 0, 2 * range),
+		distance = Math.abs(rem - range)
+	return max - distance
+}
+
+/**
  * @param   {number} min inclusive
  * @param   {number} max exclusive
  * @returns {number} */
@@ -404,7 +431,12 @@ function frame(s, delta) {
 
 		s.ctx.beginPath()
 		s.ctx.moveTo(a_pos.x, a_pos.y)
-		s.ctx.bezierCurveTo(b_pos.x, a_pos.y, a_pos.x, b_pos.y, b_pos.x, b_pos.y)
+		const t = bounce(Math.abs(a_pos.x - b_pos.x) / CELL_SIZE + 1, 0, 1)
+		s.ctx.bezierCurveTo(
+			b_pos.x + CELL_SIZE/2 * t, a_pos.y,
+			a_pos.x + CELL_SIZE/2 * t, b_pos.y,
+			b_pos.x, b_pos.y,
+		)
 		s.ctx.stroke()
 	}
 
