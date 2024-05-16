@@ -403,6 +403,13 @@ function frame(s, delta) {
 		break
 	}
 
+	// Draw hover cell
+
+	if (mouse_idx !== -1) {
+		let pos = idx_num_to_pos(mouse_idx)
+		s.ctx.fillStyle = ORANGE + "80"
+		draw_box_rounded(s.ctx, pos.x, pos.y, CELL_SIZE, CELL_SIZE, 10)
+	}
 
 	// Draw grid dots
 
