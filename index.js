@@ -1,10 +1,24 @@
 const TAU = 6.283185307179586
 
+const max    = Math.max
+const min    = Math.min
+const abs    = Math.abs
+const sin    = Math.sin
+const cos    = Math.cos
+const atan2  = Math.atan2
+const sqrt   = Math.sqrt
+const floor  = Math.floor
+const ceil   = Math.ceil
+const round  = Math.round
+const random = Math.random
+const pow    = Math.pow
+const hypot  = Math.hypot
+
 const ORANGE = "#FFCD73"
 const RED    = "#E61400"
 const BLUE   = "#0050BE"
 const WHITE  = "#f6eee0"
-const BLACK  = "#000000"
+const BLACK  = "#1a1a1a"
 
 const CELL_SIZE      = 100
 const NODE_SIZE	     = 70
@@ -35,7 +49,7 @@ function wrap(value, min, max) {
 function bounce(value, min, max) {
 	const range = max - min,
 		rem = wrap(value - min, 0, 2 * range),
-		distance = Math.abs(rem - range)
+		distance = abs(rem - range)
 	return max - distance
 }
 
@@ -44,7 +58,7 @@ function bounce(value, min, max) {
  * @param   {number} max exclusive
  * @returns {number} */
 function random_int(min, max) {
-	return Math.floor(Math.random() * (max - min) + min)
+	return floor(random() * (max - min) + min)
 }
 
 class Vec2 {
@@ -64,14 +78,14 @@ function vec2(x, y) {
 /**
  * @param {Vec2} v
  * @returns {Vec2} */
-function vec2_copy(v) {
+function vec_copy(v) {
 	return vec2(v.x, v.y)
 }
 /**
  * @param {Vec2} a
  * @param {Vec2} b
  * @returns {void} */
-function vec2_add(a, b) {
+function vec_add(a, b) {
 	a.x += b.x
 	a.y += b.y
 }
@@ -79,14 +93,14 @@ function vec2_add(a, b) {
  * @param {Vec2} a
  * @param {Vec2} b
  * @returns {Vec2} */
-function vec2_sum(a, b) {
+function vec_sum(a, b) {
 	return vec2(a.x + b.x, a.y + b.y)
 }
 /**
  * @param {Vec2} a
  * @param {number} b
  * @returns {void} */
-function vec2_add_scalar(a, b) {
+function vec_add_scalar(a, b) {
 	a.x += b
 	a.y += b
 }
@@ -94,14 +108,14 @@ function vec2_add_scalar(a, b) {
  * @param {Vec2} a
  * @param {number} b
  * @returns {Vec2} */
-function vec2_sum_scalar(a, b) {
+function vec_sum_scalar(a, b) {
 	return vec2(a.x + b, a.y + b)
 }
 /**
  * @param {Vec2} a
  * @param {Vec2} b
  * @returns {void} */
-function vec2_sub(a, b) {
+function vec_sub(a, b) {
 	a.x -= b.x
 	a.y -= b.y
 }
@@ -109,14 +123,14 @@ function vec2_sub(a, b) {
  * @param {Vec2} a
  * @param {Vec2} b
  * @returns {Vec2} */
-function vec2_diff(a, b) {
+function vec_diff(a, b) {
 	return vec2(a.x - b.x, a.y - b.y)
 }
 /**
  * @param {Vec2} a
  * @param {Vec2} b
  * @returns {void} */
-function vec2_mul(a, b) {
+function vec_mul(a, b) {
 	a.x *= b.x
 	a.y *= b.y
 }
@@ -124,14 +138,14 @@ function vec2_mul(a, b) {
  * @param {Vec2} a
  * @param {Vec2} b
  * @returns {Vec2} */
-function vec2_prod(a, b) {
+function vec_prod(a, b) {
 	return vec2(a.x * b.x, a.y * b.y)
 }
 /**
  * @param {Vec2}   a
  * @param {number} b
  * @returns {void} */
-function vec2_mul_scalar(a, b) {
+function vec_mul_scalar(a, b) {
 	a.x *= b
 	a.y *= b
 }
@@ -139,14 +153,14 @@ function vec2_mul_scalar(a, b) {
  * @param {Vec2}   a
  * @param {number} b
  * @returns {Vec2} */
-function vec2_prod_scalar(a, b) {
+function vec_prod_scalar(a, b) {
 	return vec2(a.x * b, a.y * b)
 }
 /**
  * @param {Vec2} a
  * @param {Vec2} b
  * @returns {void} */
-function vec2_div(a, b) {
+function vec_div(a, b) {
 	a.x /= b.x
 	a.y /= b.y
 }
@@ -154,15 +168,45 @@ function vec2_div(a, b) {
  * @param {Vec2} a
  * @param {Vec2} b
  * @returns {Vec2} */
-function vec2_quotient(a, b) {
+function vec_quotient(a, b) {
 	return vec2(a.x / b.x, a.y / b.y)
 }
 /**
  * @param {Vec2} v
  * @returns {void} */
-function vec2_negate(v) {
+function vec_negate(v) {
 	v.x = -v.x
 	v.y = -v.y
+}
+/**
+ * @param {Vec2} v
+ * @returns {void} */
+function vec_abs(v) {
+	v.x = abs(v.x)
+	v.y = abs(v.y)
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {number} */
+function vec_distance(a, b) {
+	return hypot(a.x - b.x, a.y - b.y)
+}
+/**
+ * @param {Vec2} a
+ * @param {Vec2} b
+ * @returns {number} */
+function vec_angle(a, b) {
+	return atan2(b.y - a.y, b.x - a.x)
+}
+/**
+ * @param {Vec2}   v
+ * @param {number} angle
+ * @param {number} dist
+ * @returns {void} */
+function vec_move(v, angle, dist) {
+	v.x += cos(angle) * dist
+	v.y += sin(angle) * dist
 }
 
 /** @typedef {CanvasRenderingContext2D} Ctx2D */
@@ -178,7 +222,8 @@ class State {
 	dpr           = 0
 	mouse         = new Vec2()
 	mouse_down    = false
-	drag_idx      = -1
+	drag_node_idx = -1
+	drag_start_idx= -1
 	dragging      = false // dragging bool is separate from drag_idx,
 	                      // because drag_idx is set to -1 when the drag is stopped for any reason
 	swaps         = /** @type {number[]} */        (new Array(100))
@@ -232,7 +277,7 @@ function new_id() {
 	let n  = last_id_count
 	do {
 		id = ALPHABET[n % ALPHABET.length] + id
-		n = Math.floor(n / ALPHABET.length) - 1
+		n = floor(n / ALPHABET.length) - 1
 	} while (n >= 0)
 	last_id_count += 1
 	return id
@@ -244,7 +289,7 @@ function new_id() {
 function idx_num_to_vec(index) {
 	const vec = new Vec2()
 	vec.x = index % GRID_WIDTH
-	vec.y = Math.floor(index / GRID_WIDTH)
+	vec.y = floor(index / GRID_WIDTH)
 	return vec
 }
 
@@ -256,15 +301,14 @@ function idx_vec_to_num(pos) {
 }
 
 /**
- * @param {State} s
  * @param {Vec2 } pos
  * @returns {number} */
-function pos_to_idx(s, pos) {
-	let x = Math.floor(pos.x / CELL_SIZE * s.dpr)
+function pos_to_idx(pos) {
+	let x = floor(pos.x / CELL_SIZE)
 	if (x < 0 || x >= GRID_WIDTH) {
 		return -1
 	}
-	let y = Math.floor(((pos.y* s.dpr) - (x+1) % 2 * CELL_SIZE/2) / CELL_SIZE )
+	let y = floor((pos.y - (x+1) % 2 * CELL_SIZE/2) / CELL_SIZE)
 	if (y < 0 || y >= GRID_WIDTH) {
 		return -1
 	}
@@ -275,7 +319,7 @@ function pos_to_idx(s, pos) {
  * @param   {Vec2} idx
  * @returns {Vec2} */
 function idx_vec_to_pos(idx) {
-	const pos = vec2_prod_scalar(idx, CELL_SIZE)
+	const pos = vec_prod_scalar(idx, CELL_SIZE)
 	pos.y += CELL_SIZE/2 * ((idx.x+1) % 2)
 	return pos
 }
@@ -284,7 +328,7 @@ function idx_vec_to_pos(idx) {
  * @returns {Vec2}   */
 function idx_num_to_pos(idx) {
 	const pos = idx_num_to_vec(idx)
-	vec2_mul_scalar(pos, CELL_SIZE)
+	vec_mul_scalar(pos, CELL_SIZE)
 	pos.y += CELL_SIZE/2 * ((idx % GRID_WIDTH + 1) % 2)
 	return pos
 }
@@ -330,49 +374,47 @@ function draw_box_rounded(ctx, x, y, w, h, radius) {
 	ctx.arcTo(x + w, y + h, x, y + h, radius)
 	ctx.arcTo(x, y + h, x, y, radius)
 	ctx.arcTo(x, y, x + w, y, radius)
-	ctx.fill()
 }
 
 /**
  * @param {State } s 
  * @param {number} delta 
  */
-function frame(s, delta) {
-	let width  = s.canvas_width  * s.dpr
-	let height = s.canvas_height * s.dpr
-
-	s.ctx.clearRect(0, 0, width, height)
+function frame(s, delta) { // TODO: use delta
+	s.ctx.clearRect(0, 0, s.canvas_width * s.dpr, s.canvas_height * s.dpr)
 
 	// Drag
 
-	let mouse_idx = pos_to_idx(s, s.mouse)
+	let mouse_idx = pos_to_idx(s.mouse)
 
 	switch (true) {
 	case s.mouse_down && !s.dragging && s.grid[mouse_idx] !== null:
 		// start dragging
-		s.drag_idx = mouse_idx
-		s.dragging = true
+		s.drag_node_idx  = mouse_idx
+		s.drag_start_idx = mouse_idx
+		s.dragging       = true
 		break
 	case !s.mouse_down && s.dragging:
 		// stop dragging
-		s.drag_idx  = -1
-		s.dragging  = false
-		s.swaps_len = 0
+		s.drag_node_idx  = -1
+		s.drag_start_idx = -1
+		s.dragging       = false
+		s.swaps_len      = 0
 		break
-	case s.mouse_down && s.drag_idx !== -1 && s.drag_idx !== mouse_idx:
+	case s.mouse_down && s.drag_node_idx !== -1 && s.drag_node_idx !== mouse_idx:
 		
 		if (mouse_idx === -1) {
 			// stop dragging that node
-			s.drag_idx = -1
+			s.drag_node_idx = -1
 		} else {
 			// move node
-			let drag_idx   = s.drag_idx
+			let drag_idx   = s.drag_node_idx
 			let drag_node  = s.grid[drag_idx]
 			let mouse_node = s.grid[mouse_idx]
 
 			s.grid[drag_idx]  = mouse_node
 			s.grid[mouse_idx] = drag_node
-			s.drag_idx        = mouse_idx
+			s.drag_node_idx   = mouse_idx
 
 			console.assert(drag_node !== null);
 			/** @type {Node} */(drag_node).idx = mouse_idx
@@ -403,14 +445,6 @@ function frame(s, delta) {
 		break
 	}
 
-	// Draw hover cell
-
-	if (mouse_idx !== -1) {
-		let pos = idx_num_to_pos(mouse_idx)
-		s.ctx.fillStyle = ORANGE + "80"
-		draw_box_rounded(s.ctx, pos.x, pos.y, CELL_SIZE, CELL_SIZE, 10)
-	}
-
 	// Draw grid dots
 
 	for (let i = 0; i < GRID_ALL_CELLS; i += 1) {
@@ -418,27 +452,36 @@ function frame(s, delta) {
 		console.assert(cell === null || cell instanceof Node)
 
 		let offset = idx_num_to_pos(i)
-		vec2_add_scalar(offset, CELL_SIZE/2)
+		vec_add_scalar(offset, CELL_SIZE/2)
 
-		s.ctx.fillStyle = ORANGE
+		s.ctx.fillStyle = BLACK + "20"
 		s.ctx.beginPath()
 		s.ctx.arc(offset.x, offset.y, 6, 0, TAU)
 		s.ctx.fill()
 	}
 
+	// Draw hover cell
+
+	if (mouse_idx !== -1) {
+		let pos = idx_num_to_pos(mouse_idx)
+		draw_box_rounded(s.ctx, pos.x, pos.y, CELL_SIZE, CELL_SIZE, 10)
+		s.ctx.fillStyle = BLACK + "10"
+		s.ctx.fill()
+	}
+
 	// Draw edges
 
-	s.ctx.strokeStyle = BLACK
+	s.ctx.strokeStyle = ORANGE
 	s.ctx.lineWidth   = 4
 	s.ctx.lineCap     = "round"
 
 	for (let edge of s.edges) {
-		let a_pos = vec2_sum_scalar(edge.a.pos, CELL_SIZE/2)
-		let b_pos = vec2_sum_scalar(edge.b.pos, CELL_SIZE/2)
+		let a_pos = vec_sum_scalar(edge.a.pos, CELL_SIZE/2)
+		let b_pos = vec_sum_scalar(edge.b.pos, CELL_SIZE/2)
 
 		s.ctx.beginPath()
 		s.ctx.moveTo(a_pos.x, a_pos.y)
-		const t = bounce(Math.abs(a_pos.x - b_pos.x) / CELL_SIZE + 1, 0, 1)
+		const t = bounce(abs(a_pos.x - b_pos.x) / CELL_SIZE + 1, 0, 1)
 		s.ctx.bezierCurveTo(
 			b_pos.x + CELL_SIZE/2 * t, a_pos.y,
 			a_pos.x + CELL_SIZE/2 * t, b_pos.y,
@@ -457,17 +500,62 @@ function frame(s, delta) {
 		console.assert(node.idx !== -1)
 
 		let goal = idx_num_to_pos(node.idx)
-		let diff = vec2_diff(goal, node.pos)
-		vec2_mul_scalar(diff, 0.22)
-		vec2_add(node.pos, diff)
+		let diff = vec_diff(goal, node.pos)
+		vec_mul_scalar(diff, 0.22)
+		vec_add(node.pos, diff)
 
-		let is_dragged = s.drag_idx === node.idx
-		s.ctx.fillStyle = is_dragged ? BLUE : RED
+		let is_dragged = s.drag_node_idx === node.idx
 		draw_box_rounded(s.ctx, node.pos.x + NODE_MARGIN, node.pos.y + NODE_MARGIN, NODE_SIZE, NODE_SIZE, 10)
+		s.ctx.fillStyle = is_dragged ? BLUE : BLACK
+		s.ctx.fill()
 
 		s.ctx.fillStyle = WHITE
 		s.ctx.fillText(node.id, node.pos.x + CELL_SIZE/2, node.pos.y + CELL_SIZE/2)
 	}
+
+	// Drag indicators
+
+	if (s.drag_start_idx !== -1) {
+		let drag_start_pos = idx_num_to_pos(s.drag_start_idx)
+		let start_pos      = vec_sum_scalar(drag_start_pos, CELL_SIZE/2)
+		let end_pos        = s.mouse
+		
+		let angle     = vec_angle(start_pos, end_pos)
+		let dist      = vec_distance(start_pos, end_pos)
+		let drag_dist = max(dist - CELL_SIZE, 0)
+		let drag_pos  = vec_copy(start_pos)
+		vec_move(drag_pos, angle, drag_dist)
+
+		let drag_idx     = pos_to_idx(drag_pos)
+		let drag_idx_pos = idx_num_to_pos(drag_idx)
+
+
+		draw_box_rounded(s.ctx, drag_idx_pos.x, drag_idx_pos.y, CELL_SIZE, CELL_SIZE, 10)
+		s.ctx.strokeStyle = RED
+		s.ctx.stroke()
+
+		s.ctx.strokeStyle = RED
+		s.ctx.beginPath()
+		s.ctx.moveTo(start_pos.x, start_pos.y)
+		s.ctx.lineTo(s.mouse.x, s.mouse.y)
+		s.ctx.stroke()
+
+		s.ctx.fillStyle = RED
+		s.ctx.beginPath()
+		s.ctx.arc(start_pos.x, start_pos.y, 6, 0, TAU)
+		s.ctx.fill()
+
+		s.ctx.fillStyle = RED
+		s.ctx.beginPath()
+		s.ctx.arc(drag_pos.x, drag_pos.y, 6, 0, TAU)
+		s.ctx.fill()
+
+		s.ctx.fillStyle = RED
+		s.ctx.beginPath()
+		s.ctx.arc(end_pos.x, end_pos.y, 6, 0, TAU)
+		s.ctx.fill()
+	}
+
 
 	// Debug
 
@@ -481,7 +569,7 @@ function frame(s, delta) {
 		s.ctx.fillText(`mouse:      ${vec_string(s.mouse)}`  , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_idx:  ${mouse_idx}`            , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_down: ${s.mouse_down}`         , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`drag_idx:   ${s.drag_idx}`           , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`drag_idx:   ${s.drag_node_idx}`      , margin, margin + (text_i++) * 20)
 
 		let swaps_text = "swaps:      "
 		if (s.swaps_len === 0) {
@@ -568,8 +656,8 @@ function main() {
 	window.addEventListener("resize", on_canvas_resize)
 
 	window.addEventListener("pointermove", e => {
-		s.mouse.x = e.clientX - s.canvas_left
-		s.mouse.y = e.clientY - s.canvas_top
+		s.mouse.x = (e.clientX - s.canvas_left) * dpr
+		s.mouse.y = (e.clientY - s.canvas_top ) * dpr
 	})
 	window.addEventListener("pointerdown", e => {
 		s.mouse_down = true
