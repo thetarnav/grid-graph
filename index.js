@@ -275,6 +275,20 @@ function connect_nodes(s, a, b) {
 	let e = edge(a, b)
 	s.edges.push(e)
 }
+/**
+ * @param {State} s
+ * @param {Node} a 
+ * @param {Node} b 
+ * @returns {boolean}
+ */
+function is_connected(s, a, b) {
+	for (let edge of s.edges) {
+		if ((edge.a === a && edge.b === b) || (edge.a === b && edge.b === a)) {
+			return true
+		}
+	}
+	return false
+}
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 let last_id_count = 0
@@ -457,6 +471,22 @@ function frame(s, delta) { // TODO: use delta
 		s.dragging       = true
 		break
 	case !s.mouse_down && s.dragging:
+		
+		if (s.drag_node_idx !== -1 && mouse_idx !== -1) {
+			// add connection
+		
+			let drag_node  = s.grid[s.drag_node_idx]
+			let mouse_node = s.grid[mouse_idx]
+
+			if (drag_node !== null &&
+			    mouse_node !== null &&
+			    drag_node !== mouse_node &&
+			    !is_connected(s, drag_node, mouse_node)
+			) {
+				connect_nodes(s, drag_node, mouse_node)
+			}
+		}
+
 		// stop dragging
 		s.drag_node_idx  = -1
 		s.drag_start_idx = -1
