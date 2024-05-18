@@ -598,8 +598,8 @@ function frame(s, delta) { // TODO: use delta
 	s.ctx.lineCap     = "round"
 
 	for (let edge of s.edges) {
-		let a_pos = vec_sum_scalar(edge.a.pos, CELL_SIZE/2)
-		let b_pos = vec_sum_scalar(edge.b.pos, CELL_SIZE/2)
+		let a_pos = node_to_pos_center(edge.a)
+		let b_pos = node_to_pos_center(edge.b)
 
 		s.ctx.beginPath()
 		s.ctx.moveTo(a_pos.x, a_pos.y)
@@ -626,9 +626,8 @@ function frame(s, delta) { // TODO: use delta
 		vec_mul_scalar(diff, 0.22)
 		vec_add(node.pos, diff)
 
-		let is_dragged = s.drag_node === node
 		draw_box_rounded(s.ctx, node.pos.x + NODE_MARGIN, node.pos.y + NODE_MARGIN, NODE_SIZE, NODE_SIZE, 10)
-		s.ctx.fillStyle = BLACK + (is_dragged ? "ff" : "dd")
+		s.ctx.fillStyle = BLACK + (s.drag_node === node ? "ff" : "dd")
 		s.ctx.fill()
 
 		s.ctx.fillStyle = WHITE
