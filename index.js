@@ -280,8 +280,9 @@ function edge(a, b) {
  * @param   {Node}  b
  * @returns {void}  */
 function connect_nodes(s, a, b) {
-	let e = edge(a, b)
-	s.edges.push(e)
+	if (a.idx !== -1 && b.idx !== -1) {
+		s.edges.push(edge(a, b))
+	}
 }
 /**
  * @param {State} s
@@ -290,6 +291,9 @@ function connect_nodes(s, a, b) {
  * @returns {boolean}
  */
 function is_connected(s, a, b) {
+	if (a.idx === -1 || b.idx === -1 || a === b) {
+		return false
+	}
 	for (let edge of s.edges) {
 		if ((edge.a === a && edge.b === b) || (edge.a === b && edge.b === a)) {
 			return true
@@ -362,6 +366,15 @@ function idx_num_to_pos(idx) {
 	pos.y += CELL_SIZE/2 * ((idx % GRID_WIDTH + 1) % 2)
 	return pos
 }
+/**
+ * @param   {number} idx
+ * @returns {Vec2}   */
+function idx_num_to_pos_center(idx) {
+	const pos = idx_num_to_pos(idx)
+	pos.x += CELL_SIZE/2
+	pos.y += CELL_SIZE/2
+	return pos
+}
 
 
 /**
@@ -413,9 +426,9 @@ function draw_box_rounded(ctx, x, y, w, h, radius) {
 function frame(s, delta) { // TODO: use delta
 	s.ctx.clearRect(0, 0, s.canvas_width * s.dpr, s.canvas_height * s.dpr)
 
-	let mouse_idx  = pos_to_idx(s.mouse)
-	let mouse_node = node_at(s, mouse_idx)
-	let drag_idx   = -1
+	let mouse_idx      = pos_to_idx(s.mouse)
+	let mouse_node     = node_at(s, mouse_idx)
+	let drag_point_idx = -1
 
 	// Drag
 
@@ -432,18 +445,18 @@ function frame(s, delta) { // TODO: use delta
 		
 		*/
 
-		let drag_start_center = vec_sum_scalar(idx_num_to_pos(s.drag_start_idx), CELL_SIZE/2)
+		let drag_start_center = idx_num_to_pos_center(s.drag_start_idx)
 		
 		let drag_angle = vec_angle(drag_start_center, s.mouse)
 		let mouse_dist = vec_distance(drag_start_center, s.mouse)
 		let drag_dist  = max(mouse_dist - CELL_SIZE, 0)
 		let drag_pos   = vec_moved(drag_start_center, drag_angle, drag_dist)
 	
-		drag_idx  = pos_to_idx(drag_pos)
+		drag_point_idx  = pos_to_idx(drag_pos)
 
 		// Draw drag indicator
 
-		let drag_idx_pos = idx_num_to_pos(drag_idx)
+		let drag_idx_pos = idx_num_to_pos(drag_point_idx)
 
 		draw_box_rounded(s.ctx, drag_idx_pos.x, drag_idx_pos.y, CELL_SIZE, CELL_SIZE, 10)
 		s.ctx.strokeStyle = RED
@@ -480,19 +493,10 @@ function frame(s, delta) { // TODO: use delta
 		s.dragging       = true
 		break
 	case !s.mouse_down && s.dragging:
-		
-		if (s.drag_node_idx !== -1 && mouse_idx !== -1) {
-			// add connection
-		
-			let drag_node  = s.grid[s.drag_node_idx]
-
-			if (drag_node.id != "" &&
-			    mouse_node.id != "" &&
-			    drag_node !== mouse_node &&
-			    !is_connected(s, drag_node, mouse_node)
-			) {
-				connect_nodes(s, drag_node, mouse_node)
-			}
+		// add connection
+		let drag_node = node_at(s, s.drag_node_idx)
+		if (!is_connected(s, drag_node, mouse_node)) {
+			connect_nodes(s, drag_node, mouse_node)
 		}
 
 		// stop dragging
@@ -501,46 +505,63 @@ function frame(s, delta) { // TODO: use delta
 		s.dragging       = false
 		s.swaps_len      = 0
 		break
-	case s.mouse_down && s.drag_node_idx !== -1 && s.drag_node_idx !== drag_idx:
-		
-		if (drag_idx === -1) {
-			// stop dragging that node
-			s.drag_node_idx = -1
-		} else {
-			// move node
-			let from_idx  = s.drag_node_idx
-			let from_node = node_at(s, s.drag_node_idx)
-			let to_node   = node_at(s, drag_idx)
-	
-			s.grid[from_idx] = to_node
-			s.grid[drag_idx] = from_node
-			s.drag_node_idx  = drag_idx
-			from_node.idx    = drag_idx
-	
-			// try to reduce changing positins of other nodes while dragging
-			// previous swaps will be undone, if the space is now free
-	
-			for (let i = s.swaps_len - 2; i >= 0; i -= 2) {
-				let from = s.swaps[i+0]
-				let to   = s.swaps[i+1]
-				let from_node = node_at(s, from)
-				let to_node   = node_at(s, to)
-				if (to_node.idx === -1) {
-					console.assert(from_node.id !== "")
-					from_node.idx = to
-					s.grid[to]   = from_node
-					s.grid[from] = to_node
-					s.swaps_len -= 2
-				}
-			}
+	case s.mouse_down && s.drag_node_idx !== -1:
 
-			// swap
+		if (mouse_idx !== s.drag_node_idx && mouse_node.id !== "") {
+			// draw connect indicator
+
+			let drag_node_pos = idx_num_to_pos_center(s.drag_node_idx)
+			let mouse_pos     = idx_num_to_pos_center(mouse_idx)
+
+			s.ctx.strokeStyle = BLUE
+			s.ctx.lineWidth   = 8
+			s.ctx.lineCap     = "round"
+			s.ctx.beginPath()
+			s.ctx.moveTo(drag_node_pos.x, drag_node_pos.y)
+			s.ctx.lineTo(mouse_pos.x, mouse_pos.y)
+			s.ctx.stroke()
+		}
+
+		if (s.drag_node_idx !== drag_point_idx) {
+			if (drag_point_idx === -1) {
+				// stop dragging that node
+				s.drag_node_idx = -1
+			} else {
+				// move node
+				let from_idx  = s.drag_node_idx
+				let from_node = node_at(s, s.drag_node_idx)
+				let to_node   = node_at(s, drag_point_idx)
+		
+				s.grid[from_idx]       = to_node
+				s.grid[drag_point_idx] = from_node
+				s.drag_node_idx        = drag_point_idx
+				from_node.idx          = drag_point_idx
+		
+				// try to reduce changing positins of other nodes while dragging
+				// previous swaps will be undone, if the space is now free
+		
+				for (let i = s.swaps_len - 2; i >= 0; i -= 2) {
+					let from = s.swaps[i+0]
+					let to   = s.swaps[i+1]
+					let from_node = node_at(s, from)
+					let to_node   = node_at(s, to)
+					if (to_node.idx === -1) {
+						console.assert(from_node.id !== "")
+						from_node.idx = to
+						s.grid[to]    = from_node
+						s.grid[from]  = to_node
+						s.swaps_len  -= 2
+					}
+				}
 	
-			if (to_node.id !== "") {
-				s.swaps[s.swaps_len+0] = from_idx
-				s.swaps[s.swaps_len+1] = drag_idx
-				s.swaps_len += 2
-				to_node.idx = from_idx
+				// swap
+		
+				if (to_node.id !== "") {
+					s.swaps[s.swaps_len+0] = from_idx
+					s.swaps[s.swaps_len+1] = drag_point_idx
+					s.swaps_len += 2
+					to_node.idx = from_idx
+				}
 			}
 		}
 
@@ -550,8 +571,7 @@ function frame(s, delta) { // TODO: use delta
 	// Draw grid dots
 
 	for (let idx = 0; idx < GRID_ALL_CELLS; idx += 1) {
-		let offset = idx_num_to_pos(idx)
-		vec_add_scalar(offset, CELL_SIZE/2)
+		let offset = idx_num_to_pos_center(idx)
 
 		s.ctx.fillStyle = BLACK + "20"
 		s.ctx.beginPath()
@@ -605,7 +625,7 @@ function frame(s, delta) { // TODO: use delta
 
 		let is_dragged = s.drag_node_idx === node.idx
 		draw_box_rounded(s.ctx, node.pos.x + NODE_MARGIN, node.pos.y + NODE_MARGIN, NODE_SIZE, NODE_SIZE, 10)
-		s.ctx.fillStyle = is_dragged ? BLUE : BLACK
+		s.ctx.fillStyle = BLACK + (is_dragged ? "ff" : "dd")
 		s.ctx.fill()
 
 		s.ctx.fillStyle = WHITE
