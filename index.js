@@ -230,7 +230,7 @@ class State {
 	dpr           = 0
 	mouse         = new Vec2()
 	mouse_down    = false
-	drag_node_idx = -1
+	drag_node     = new Node()
 	drag_start_idx= -1
 	dragging      = false // dragging bool is separate from drag_idx,
 	                      // because drag_idx is set to -1 when the drag is stopped for any reason
@@ -375,6 +375,12 @@ function idx_num_to_pos_center(idx) {
 	pos.y += CELL_SIZE/2
 	return pos
 }
+/**
+ * @param   {Node} node
+ * @returns {Vec2} */
+function node_to_pos_center(node) {
+	return vec_sum_scalar(node.pos, CELL_SIZE/2)
+}
 
 
 /**
@@ -488,30 +494,29 @@ function frame(s, delta) { // TODO: use delta
 	switch (true) {
 	case s.mouse_down && !s.dragging && mouse_node.id != "":
 		// start dragging
-		s.drag_node_idx  = mouse_idx
+		s.drag_node      = mouse_node
 		s.drag_start_idx = mouse_idx
 		s.dragging       = true
 		break
 	case !s.mouse_down && s.dragging:
 		// add connection
-		let drag_node = node_at(s, s.drag_node_idx)
-		if (!is_connected(s, drag_node, mouse_node)) {
-			connect_nodes(s, drag_node, mouse_node)
+		if (!is_connected(s, s.drag_node, mouse_node)) {
+			connect_nodes(s, s.drag_node, mouse_node)
 		}
 
 		// stop dragging
-		s.drag_node_idx  = -1
+		s.drag_node      = make_node()
 		s.drag_start_idx = -1
 		s.dragging       = false
 		s.swaps_len      = 0
 		break
-	case s.mouse_down && s.drag_node_idx !== -1:
+	case s.mouse_down && s.drag_node.idx !== -1:
 
-		if (mouse_idx !== s.drag_node_idx && mouse_node.id !== "") {
+		if (mouse_node !== s.drag_node && mouse_node.id !== "") {
 			// draw connect indicator
 
-			let drag_node_pos = idx_num_to_pos_center(s.drag_node_idx)
-			let mouse_pos     = idx_num_to_pos_center(mouse_idx)
+			let drag_node_pos = node_to_pos_center(s.drag_node)
+			let mouse_pos     = node_to_pos_center(mouse_node)
 
 			s.ctx.strokeStyle = BLUE
 			s.ctx.lineWidth   = 8
@@ -522,20 +527,18 @@ function frame(s, delta) { // TODO: use delta
 			s.ctx.stroke()
 		}
 
-		if (s.drag_node_idx !== drag_point_idx) {
+		if (s.drag_node.idx !== drag_point_idx) {
 			if (drag_point_idx === -1) {
 				// stop dragging that node
-				s.drag_node_idx = -1
+				s.drag_node = make_node()
 			} else {
 				// move node
-				let from_idx  = s.drag_node_idx
-				let from_node = node_at(s, s.drag_node_idx)
-				let to_node   = node_at(s, drag_point_idx)
+				let from_idx = s.drag_node.idx
+				let to_node  = node_at(s, drag_point_idx)
 		
 				s.grid[from_idx]       = to_node
-				s.grid[drag_point_idx] = from_node
-				s.drag_node_idx        = drag_point_idx
-				from_node.idx          = drag_point_idx
+				s.grid[drag_point_idx] = s.drag_node
+				s.drag_node.idx        = drag_point_idx
 		
 				// try to reduce changing positins of other nodes while dragging
 				// previous swaps will be undone, if the space is now free
@@ -623,7 +626,7 @@ function frame(s, delta) { // TODO: use delta
 		vec_mul_scalar(diff, 0.22)
 		vec_add(node.pos, diff)
 
-		let is_dragged = s.drag_node_idx === node.idx
+		let is_dragged = s.drag_node === node
 		draw_box_rounded(s.ctx, node.pos.x + NODE_MARGIN, node.pos.y + NODE_MARGIN, NODE_SIZE, NODE_SIZE, 10)
 		s.ctx.fillStyle = BLACK + (is_dragged ? "ff" : "dd")
 		s.ctx.fill()
@@ -644,7 +647,7 @@ function frame(s, delta) { // TODO: use delta
 		s.ctx.fillText(`mouse:         ${vec_string(s.mouse)}`, margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_idx:     ${mouse_idx}`          , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_down:    ${s.mouse_down}`       , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`drag_node_idx: ${s.drag_node_idx}`    , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`drag_node_idx: ${s.drag_node.idx}`    , margin, margin + (text_i++) * 20)
 
 		let swaps_text = "swaps:         "
 		if (s.swaps_len === 0) {
