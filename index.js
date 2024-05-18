@@ -66,8 +66,8 @@ class Vec2 {
 	y = 0
 }
 /**
- * @param {number} x 
- * @param {number} y 
+ * @param   {number} x 
+ * @param   {number} y 
  * @returns {Vec2} */
 function vec2(x, y) {
 	var v = new Vec2()
@@ -76,143 +76,143 @@ function vec2(x, y) {
 	return v
 }
 /**
- * @param {Vec2} v
+ * @param   {Vec2} v
  * @returns {Vec2} */
 function vec_copy(v) {
 	return vec2(v.x, v.y)
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2} a
+ * @param   {Vec2} b
  * @returns {void} */
 function vec_add(a, b) {
 	a.x += b.x
 	a.y += b.y
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2} a
+ * @param   {Vec2} b
  * @returns {Vec2} */
 function vec_sum(a, b) {
 	return vec2(a.x + b.x, a.y + b.y)
 }
 /**
- * @param {Vec2} a
- * @param {number} b
+ * @param   {Vec2} a
+ * @param   {number} b
  * @returns {void} */
 function vec_add_scalar(a, b) {
 	a.x += b
 	a.y += b
 }
 /**
- * @param {Vec2} a
- * @param {number} b
+ * @param   {Vec2} a
+ * @param   {number} b
  * @returns {Vec2} */
 function vec_sum_scalar(a, b) {
 	return vec2(a.x + b, a.y + b)
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2} a
+ * @param   {Vec2} b
  * @returns {void} */
 function vec_sub(a, b) {
 	a.x -= b.x
 	a.y -= b.y
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2} a
+ * @param   {Vec2} b
  * @returns {Vec2} */
 function vec_diff(a, b) {
 	return vec2(a.x - b.x, a.y - b.y)
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2} a
+ * @param   {Vec2} b
  * @returns {void} */
 function vec_mul(a, b) {
 	a.x *= b.x
 	a.y *= b.y
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2} a
+ * @param   {Vec2} b
  * @returns {Vec2} */
 function vec_prod(a, b) {
 	return vec2(a.x * b.x, a.y * b.y)
 }
 /**
- * @param {Vec2}   a
- * @param {number} b
+ * @param   {Vec2}   a
+ * @param   {number} b
  * @returns {void} */
 function vec_mul_scalar(a, b) {
 	a.x *= b
 	a.y *= b
 }
 /**
- * @param {Vec2}   a
- * @param {number} b
- * @returns {Vec2} */
+ * @param   {Vec2}   a
+ * @param   {number} b
+ * @returns {Vec2}   */
 function vec_prod_scalar(a, b) {
 	return vec2(a.x * b, a.y * b)
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2} a
+ * @param   {Vec2} b
  * @returns {void} */
 function vec_div(a, b) {
 	a.x /= b.x
 	a.y /= b.y
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2} a
+ * @param   {Vec2} b
  * @returns {Vec2} */
 function vec_quotient(a, b) {
 	return vec2(a.x / b.x, a.y / b.y)
 }
 /**
- * @param {Vec2} v
+ * @param   {Vec2} v
  * @returns {void} */
 function vec_negate(v) {
 	v.x = -v.x
 	v.y = -v.y
 }
 /**
- * @param {Vec2} v
+ * @param   {Vec2} v
  * @returns {void} */
 function vec_abs(v) {
 	v.x = abs(v.x)
 	v.y = abs(v.y)
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2}   a
+ * @param   {Vec2}   b
  * @returns {number} */
 function vec_distance(a, b) {
 	return hypot(a.x - b.x, a.y - b.y)
 }
 /**
- * @param {Vec2} a
- * @param {Vec2} b
+ * @param   {Vec2}   a
+ * @param   {Vec2}   b
  * @returns {number} */
 function vec_angle(a, b) {
 	return atan2(b.y - a.y, b.x - a.x)
 }
 /**
- * @param {Vec2}   v
- * @param {number} angle
- * @param {number} dist
- * @returns {void} */
+ * @param   {Vec2}   v
+ * @param   {number} angle
+ * @param   {number} dist
+ * @returns {void}   */
 function vec_move(v, angle, dist) {
 	v.x += cos(angle) * dist
 	v.y += sin(angle) * dist
 }
 /**
- * @param {Vec2}   v
- * @param {number} angle
- * @param {number} dist
- * @returns {Vec2} */
+ * @param   {Vec2}   v
+ * @param   {number} angle
+ * @param   {number} dist
+ * @returns {Vec2}   */
 function vec_moved(v, angle, dist) {
 	return vec2(v.x + cos(angle) * dist, v.y + sin(angle) * dist)
 }
@@ -285,11 +285,10 @@ function connect_nodes(s, a, b) {
 	}
 }
 /**
- * @param {State} s
- * @param {Node} a 
- * @param {Node} b 
- * @returns {boolean}
- */
+ * @param   {State}   s
+ * @param   {Node}    a
+ * @param   {Node}    b
+ * @returns {boolean} */
 function is_connected(s, a, b) {
 	if (a.idx === -1 || b.idx === -1 || a === b) {
 		return false
@@ -318,8 +317,8 @@ function new_id() {
 }
 
 /**
- * @param {number} index
- * @returns {Vec2} */
+ * @param   {number} index
+ * @returns {Vec2}   */
 function idx_num_to_vec(index) {
 	const vec = new Vec2()
 	vec.x = index % GRID_WIDTH
@@ -328,14 +327,14 @@ function idx_num_to_vec(index) {
 }
 
 /**
- * @param {Vec2} pos
+ * @param   {Vec2}   pos
  * @returns {number} */
 function idx_vec_to_num(pos) {
 	return pos.y * GRID_WIDTH + pos.x
 }
 
 /**
- * @param {Vec2 } pos
+ * @param   {Vec2}   pos
  * @returns {number} */
 function pos_to_idx(pos) {
 	let x = floor(pos.x / CELL_SIZE)
@@ -384,7 +383,7 @@ function node_to_pos_center(node) {
 
 
 /**
- * @param {number} n
+ * @param   {number} n
  * @returns {string} */
 function num_string(n) {
 	let text = ""
@@ -402,20 +401,20 @@ function num_string(n) {
 }
 
 /**
- * @param {Vec2} v
+ * @param   {Vec2}   v
  * @returns {string} */
 function vec_string(v) {
 	return `${num_string(v.x)}, ${num_string(v.y)}`
 }
 
 /**
- * @param {Ctx2D}  ctx
- * @param {number} x
- * @param {number} y
- * @param {number} w
- * @param {number} h
- * @param {number} radius
- * @returns {void} */
+ * @param   {Ctx2D}  ctx
+ * @param   {number} x
+ * @param   {number} y
+ * @param   {number} w
+ * @param   {number} h
+ * @param   {number} radius
+ * @returns {void}   */
 function draw_box_rounded(ctx, x, y, w, h, radius) {
 	ctx.beginPath()
 	ctx.moveTo(x + radius, y)
@@ -426,9 +425,9 @@ function draw_box_rounded(ctx, x, y, w, h, radius) {
 }
 
 /**
- * @param {State } s 
- * @param {number} delta 
- */
+ * @param   {State } s 
+ * @param   {number} delta 
+ * @returns {void}   */
 function frame(s, delta) { // TODO: use delta
 	s.ctx.clearRect(0, 0, s.canvas_width * s.dpr, s.canvas_height * s.dpr)
 
