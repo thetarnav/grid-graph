@@ -234,11 +234,11 @@ class State {
 	drag_start_idx= -1
 	dragging      = false // dragging bool is separate from drag_idx,
 	                      // because drag_idx is set to -1 when the drag is stopped for any reason
-	swaps         = /** @type {number[]} */        (new Array(100))
+	swaps         = /** @type {number[]} */(new Array(100))
 	swaps_len     = 0
-	nodes         = /** @type {Node[]} */          ([])
-	grid          = /** @type {(Node | null)[]} */ ([])
-	edges         = /** @type {Edge[]} */          ([])
+	nodes         = /** @type {Node[]} */ ([])
+	grid          = /** @type {Node[]} */ ([])
+	edges         = /** @type {Edge[]} */ ([])
 }
 
 class Node {
@@ -247,14 +247,22 @@ class Node {
 	idx = -1
 }
 function make_node() {
-	const node = new Node()
-	node.id = new_id()
-	return node
+	return new Node()
+}
+/**
+ * @param   {State}  s
+ * @param   {number} idx
+ * @returns {Node}   */
+function node_at(s, idx) {
+	if (idx < 0 || idx >= GRID_ALL_CELLS) {
+		return make_node()
+	}
+	return s.grid[idx]
 }
 
 class Edge {
-	a = new Node()
-	b = new Node()
+	a = make_node()
+	b = make_node()
 }
 /**
  * @param   {Node} a
@@ -405,10 +413,11 @@ function draw_box_rounded(ctx, x, y, w, h, radius) {
 function frame(s, delta) { // TODO: use delta
 	s.ctx.clearRect(0, 0, s.canvas_width * s.dpr, s.canvas_height * s.dpr)
 
-	// Drag
+	let mouse_idx  = pos_to_idx(s.mouse)
+	let mouse_node = node_at(s, mouse_idx)
+	let drag_idx   = -1
 
-	let mouse_idx = pos_to_idx(s.mouse)
-	let drag_idx  = -1
+	// Drag
 
 	if (s.dragging) {
 		/*
@@ -464,7 +473,7 @@ function frame(s, delta) { // TODO: use delta
 	
 
 	switch (true) {
-	case s.mouse_down && !s.dragging && s.grid[mouse_idx] !== null:
+	case s.mouse_down && !s.dragging && mouse_node.id != "":
 		// start dragging
 		s.drag_node_idx  = mouse_idx
 		s.drag_start_idx = mouse_idx
@@ -476,10 +485,9 @@ function frame(s, delta) { // TODO: use delta
 			// add connection
 		
 			let drag_node  = s.grid[s.drag_node_idx]
-			let mouse_node = s.grid[mouse_idx]
 
-			if (drag_node !== null &&
-			    mouse_node !== null &&
+			if (drag_node.id != "" &&
+			    mouse_node.id != "" &&
 			    drag_node !== mouse_node &&
 			    !is_connected(s, drag_node, mouse_node)
 			) {
@@ -498,42 +506,42 @@ function frame(s, delta) { // TODO: use delta
 		if (drag_idx === -1) {
 			// stop dragging that node
 			s.drag_node_idx = -1
-			break
-		}
-
-		// move node
-		let drag_node_idx = s.drag_node_idx
-		let drag_node     = s.grid[drag_node_idx]
-		let mouse_node    = s.grid[drag_idx]
-
-		s.grid[drag_node_idx] = mouse_node
-		s.grid[drag_idx]      = drag_node
-		s.drag_node_idx       = drag_idx
-
-		console.assert(drag_node !== null);
-		/** @type {Node} */(drag_node).idx = drag_idx
-
-		// try to reduce changing positins of other nodes while dragging
-		// previous swaps will be undone, if the space is now free
-
-		for (let i = s.swaps_len - 2; i >= 0; i -= 2) {
-			let from = s.swaps[i+0]
-			let to   = s.swaps[i+1]
-			if (s.grid[to] === null) {
-				let from_node = /** @type {Node} */(s.grid[from])
-				console.assert(from_node !== null)
-				from_node.idx = to
-				s.grid[to]    = from_node
-				s.grid[from]  = null
-				s.swaps_len  -= 2
+		} else {
+			// move node
+			let from_idx  = s.drag_node_idx
+			let from_node = node_at(s, s.drag_node_idx)
+			let to_node   = node_at(s, drag_idx)
+	
+			s.grid[from_idx] = to_node
+			s.grid[drag_idx] = from_node
+			s.drag_node_idx  = drag_idx
+			from_node.idx    = drag_idx
+	
+			// try to reduce changing positins of other nodes while dragging
+			// previous swaps will be undone, if the space is now free
+	
+			for (let i = s.swaps_len - 2; i >= 0; i -= 2) {
+				let from = s.swaps[i+0]
+				let to   = s.swaps[i+1]
+				let from_node = node_at(s, from)
+				let to_node   = node_at(s, to)
+				if (to_node.idx === -1) {
+					console.assert(from_node.id !== "")
+					from_node.idx = to
+					s.grid[to]   = from_node
+					s.grid[from] = to_node
+					s.swaps_len -= 2
+				}
 			}
-		}
 
-		if (mouse_node !== null) {
-			s.swaps[s.swaps_len+0] = drag_node_idx
-			s.swaps[s.swaps_len+1] = drag_idx
-			s.swaps_len += 2
-			mouse_node.idx = drag_node_idx
+			// swap
+	
+			if (to_node.id !== "") {
+				s.swaps[s.swaps_len+0] = from_idx
+				s.swaps[s.swaps_len+1] = drag_idx
+				s.swaps_len += 2
+				to_node.idx = from_idx
+			}
 		}
 
 		break
@@ -541,11 +549,8 @@ function frame(s, delta) { // TODO: use delta
 
 	// Draw grid dots
 
-	for (let i = 0; i < GRID_ALL_CELLS; i += 1) {
-		let cell = s.grid[i]
-		console.assert(cell === null || cell instanceof Node)
-
-		let offset = idx_num_to_pos(i)
+	for (let idx = 0; idx < GRID_ALL_CELLS; idx += 1) {
+		let offset = idx_num_to_pos(idx)
 		vec_add_scalar(offset, CELL_SIZE/2)
 
 		s.ctx.fillStyle = BLACK + "20"
@@ -652,19 +657,20 @@ function main() {
 	s.window_width  = window.innerWidth
 	s.window_height = window.innerHeight
 
-	s.grid = new Array(GRID_ALL_CELLS).fill(null)
+	s.grid = Array.from({length: GRID_ALL_CELLS}, make_node)
 
 	s.nodes = new Array(16)
-	for (let i = 0; i < s.nodes.length; i += 1) {
+	for (let i = 0; i < 16; i += 1) {
 
 		let grid_idx = 0
 		do grid_idx = random_int(0, GRID_ALL_CELLS)
-		while (s.grid[grid_idx] !== null)
+		while (s.grid[grid_idx].id !== "")
 
-		let node = make_node()
-		node.idx = grid_idx
-		node.pos = idx_num_to_pos(grid_idx)
-		s.nodes[i] = node
+		let node         = make_node()
+		node.id          = new_id()
+		node.idx         = grid_idx
+		node.pos         = idx_num_to_pos(grid_idx)
+		s.nodes[i]       = node
 		s.grid[grid_idx] = s.nodes[i]
 	}
 
