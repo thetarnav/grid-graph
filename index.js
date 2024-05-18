@@ -490,11 +490,12 @@ function frame(s, delta) { // TODO: use delta
 			let from = s.swaps[i+0]
 			let to   = s.swaps[i+1]
 			if (s.grid[to] === null) {
-				s.grid[to]   = s.grid[from]
-				console.assert(s.grid[to] !== null);
-				/** @type {Node} */ (s.grid[to]).idx = to
-				s.grid[from] = null
-				s.swaps_len -= 2
+				let from_node = /** @type {Node} */(s.grid[from])
+				console.assert(from_node !== null)
+				from_node.idx = to
+				s.grid[to]    = from_node
+				s.grid[from]  = null
+				s.swaps_len  -= 2
 			}
 		}
 
