@@ -236,6 +236,9 @@ class State {
 	                      // because drag_idx is set to -1 when the drag is stopped for any reason
 	swaps         = /** @type {number[]} */(new Array(100))
 	swaps_len     = 0
+	draw_points   = new Float64Array(1024)
+	draw_len	  = 0
+	drawing	      = false
 	nodes         = /** @type {Node[]} */ ([])
 	grid          = /** @type {Node[]} */ ([])
 	edges         = /** @type {Edge[]} */ ([])
@@ -491,11 +494,21 @@ function frame(s, delta) { // TODO: use delta
 	
 
 	switch (true) {
-	case s.mouse_down && !s.dragging && mouse_node.id != "":
-		// start dragging
-		s.drag_node      = mouse_node
-		s.drag_start_idx = mouse_idx
-		s.dragging       = true
+	case s.mouse_down && !s.dragging && !s.drawing:
+
+		if (mouse_node.id !== "") {
+			// start dragging
+			s.drag_node      = mouse_node
+			s.drag_start_idx = mouse_idx
+			s.dragging       = true
+		} else {
+			// start drawing
+			s.draw_points[0] = s.mouse.x
+			s.draw_points[1] = s.mouse.y
+			s.draw_len       = 2
+			s.drawing        = true
+		}
+
 		break
 	case !s.mouse_down && s.dragging:
 		// add connection
@@ -508,6 +521,20 @@ function frame(s, delta) { // TODO: use delta
 		s.drag_start_idx = -1
 		s.dragging       = false
 		s.swaps_len      = 0
+		break
+	case s.mouse_down && s.drawing:
+		// continue drawing
+		if (s.draw_len + 2 >= s.draw_points.length) {
+			s.draw_len = 0
+		}
+		s.draw_points[s.draw_len+0] = s.mouse.x
+		s.draw_points[s.draw_len+1] = s.mouse.y
+		s.draw_len += 2
+		break
+	case !s.mouse_down && s.draw_len > 0:
+		// stop drawing
+		s.draw_len = 0
+		s.drawing  = false
 		break
 	case s.mouse_down && s.drag_node.idx !== -1:
 
@@ -631,6 +658,21 @@ function frame(s, delta) { // TODO: use delta
 
 		s.ctx.fillStyle = WHITE
 		s.ctx.fillText(node.id, node.pos.x + CELL_SIZE/2, node.pos.y + CELL_SIZE/2)
+	}
+
+	// Draw drawing
+
+	if (s.draw_len > 0) {
+		s.ctx.strokeStyle = BLUE
+		s.ctx.lineWidth   = 4
+		s.ctx.lineCap     = "round"
+
+		s.ctx.beginPath()
+		s.ctx.moveTo(s.draw_points[0], s.draw_points[1])
+		for (let i = 2; i < s.draw_len; i += 2) {
+			s.ctx.lineTo(s.draw_points[i], s.draw_points[i+1])
+		}
+		s.ctx.stroke()
 	}
 
 	// Debug
