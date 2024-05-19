@@ -20,11 +20,12 @@ const BLUE   = "#0050BE"
 const WHITE  = "#f6eee0"
 const BLACK  = "#1a1a1a"
 
-const CELL_SIZE      = 100
-const NODE_SIZE	     = 70
-const NODE_MARGIN	 = (CELL_SIZE - NODE_SIZE) / 2
-const GRID_WIDTH     = 12
-const GRID_ALL_CELLS = GRID_WIDTH * GRID_WIDTH
+const CELL_SIZE           = 100
+const NODE_SIZE	          = 70
+const NODE_MARGIN	      = (CELL_SIZE - NODE_SIZE) / 2
+const NODE_SWAP_THRESHOLD = 0.6 * Math.sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
+const GRID_WIDTH          = 12
+const GRID_ALL_CELLS      = GRID_WIDTH * GRID_WIDTH
 
 /**
  * @param   {number} a 
@@ -490,63 +491,11 @@ function add_draw_point(s, x, y) {
 function frame(s, delta) { // TODO: use delta
 	s.ctx.clearRect(0, 0, s.canvas_width * s.dpr, s.canvas_height * s.dpr)
 
-	let mouse_idx      = pos_to_idx(s.mouse)
-	let mouse_node     = node_at(s, mouse_idx)
-	let drag_point_idx = -1
+	let mouse_idx  = pos_to_idx(s.mouse)
+	let mouse_node = node_at(s, mouse_idx)
 
-	// Drag
-
-	if (s.dragging) {
-		/*
-		Calc drag position
-
-		_                   one cell space
-		_                    v
-		@-----------------@----@
-		|                 |    |
-		drag_start        |   mouse_pos
-		_            drag_pos
-		
-		*/
-
-		let drag_start_center = idx_num_to_pos_center(s.drag_start_idx)
-		
-		let drag_angle = vec_angle(drag_start_center, s.mouse)
-		let mouse_dist = vec_distance(drag_start_center, s.mouse)
-		let drag_dist  = max(mouse_dist - CELL_SIZE, 0)
-		let drag_pos   = vec_moved(drag_start_center, drag_angle, drag_dist)
-	
-		drag_point_idx  = pos_to_idx(drag_pos)
-
-		// Draw drag indicator
-
-		let drag_idx_pos = idx_num_to_pos(drag_point_idx)
-
-		draw_box_rounded(s.ctx, drag_idx_pos.x, drag_idx_pos.y, CELL_SIZE, CELL_SIZE, 10)
-		s.ctx.strokeStyle = RED
-		s.ctx.stroke()
-
-		s.ctx.strokeStyle = RED
-		s.ctx.beginPath()
-		s.ctx.moveTo(drag_start_center.x, drag_start_center.y)
-		s.ctx.lineTo(s.mouse.x, s.mouse.y)
-		s.ctx.stroke()
-
-		s.ctx.fillStyle = RED
-		s.ctx.beginPath()
-		s.ctx.arc(drag_start_center.x, drag_start_center.y, 6, 0, TAU)
-		s.ctx.fill()
-
-		s.ctx.fillStyle = RED
-		s.ctx.beginPath()
-		s.ctx.arc(drag_pos.x, drag_pos.y, 6, 0, TAU)
-		s.ctx.fill()
-
-		s.ctx.fillStyle = RED
-		s.ctx.beginPath()
-		s.ctx.arc(s.mouse.x, s.mouse.y, 6, 0, TAU)
-		s.ctx.fill()
-	}
+	let mouse_node_center = idx_num_to_pos_center(mouse_idx)
+	let mouse_in_center   = vec_distance(mouse_node_center, s.mouse) < NODE_SWAP_THRESHOLD
 	
 
 	switch (true) {
@@ -612,62 +561,61 @@ function frame(s, delta) { // TODO: use delta
 		}
 
 		break
-	case s.mouse_down && s.drag_node.idx !== -1:
+	case s.mouse_down && s.drag_node.idx !== -1 && mouse_node.idx !== s.drag_node.idx:
 
-		if (mouse_node !== s.drag_node && mouse_node.id !== "") {
-			// draw connect indicator
+		if (mouse_in_center || mouse_node.id === "") {
+			if (mouse_idx === -1) {
+				// stop dragging that node
+				s.drag_node = make_node()
+				break
+			}
+
+			// move node
+			let from_idx = s.drag_node.idx
+			let to_node  = node_at(s, mouse_idx)
+	
+			s.grid[from_idx]  = to_node
+			s.grid[mouse_idx] = s.drag_node
+			s.drag_node.idx   = mouse_idx
+	
+			// try to reduce changing positins of other nodes while dragging
+			// previous swaps will be undone, if the space is now free
+	
+			for (let i = s.swaps_len - 2; i >= 0; i -= 2) {
+				let from = s.swaps[i+0]
+				let to   = s.swaps[i+1]
+				let from_node = node_at(s, from)
+				let to_node   = node_at(s, to)
+				if (to_node.idx === -1) {
+					console.assert(from_node.id !== "")
+					from_node.idx = to
+					s.grid[to]    = from_node
+					s.grid[from]  = to_node
+					s.swaps_len  -= 2
+				}
+			}
+
+			// swap
+	
+			if (to_node.id !== "") {
+				s.swaps[s.swaps_len+0] = from_idx
+				s.swaps[s.swaps_len+1] = mouse_idx
+				s.swaps_len += 2
+				to_node.idx = from_idx
+			}
+		} else {
+			// draw swap indicator
 
 			let drag_node_pos = node_to_pos_center(s.drag_node)
-			let mouse_pos     = node_to_pos_center(mouse_node)
+			let mouse_pos     = idx_num_to_pos(mouse_idx)
 
+			s.ctx.beginPath()
+			s.ctx.moveTo(drag_node_pos.x, drag_node_pos.y)
+			s.ctx.lineTo(mouse_pos.x + CELL_SIZE/2, mouse_pos.y + CELL_SIZE/2)
 			s.ctx.strokeStyle = BLUE
 			s.ctx.lineWidth   = 8
 			s.ctx.lineCap     = "round"
-			s.ctx.beginPath()
-			s.ctx.moveTo(drag_node_pos.x, drag_node_pos.y)
-			s.ctx.lineTo(mouse_pos.x, mouse_pos.y)
 			s.ctx.stroke()
-		}
-
-		if (s.drag_node.idx !== drag_point_idx) {
-			if (drag_point_idx === -1) {
-				// stop dragging that node
-				s.drag_node = make_node()
-			} else {
-				// move node
-				let from_idx = s.drag_node.idx
-				let to_node  = node_at(s, drag_point_idx)
-		
-				s.grid[from_idx]       = to_node
-				s.grid[drag_point_idx] = s.drag_node
-				s.drag_node.idx        = drag_point_idx
-		
-				// try to reduce changing positins of other nodes while dragging
-				// previous swaps will be undone, if the space is now free
-		
-				for (let i = s.swaps_len - 2; i >= 0; i -= 2) {
-					let from = s.swaps[i+0]
-					let to   = s.swaps[i+1]
-					let from_node = node_at(s, from)
-					let to_node   = node_at(s, to)
-					if (to_node.idx === -1) {
-						console.assert(from_node.id !== "")
-						from_node.idx = to
-						s.grid[to]    = from_node
-						s.grid[from]  = to_node
-						s.swaps_len  -= 2
-					}
-				}
-	
-				// swap
-		
-				if (to_node.id !== "") {
-					s.swaps[s.swaps_len+0] = from_idx
-					s.swaps[s.swaps_len+1] = drag_point_idx
-					s.swaps_len += 2
-					to_node.idx = from_idx
-				}
-			}
 		}
 
 		break
@@ -761,10 +709,11 @@ function frame(s, delta) { // TODO: use delta
 		s.ctx.font         = "16px monospace"
 		s.ctx.textAlign    = "left"
 		s.ctx.textBaseline = "top"
-		s.ctx.fillText(`mouse:         ${vec_string(s.mouse)}`, margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`mouse_idx:     ${mouse_idx}`          , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`mouse_down:    ${s.mouse_down}`       , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`drag_node_idx: ${s.drag_node.idx}`    , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse:           ${vec_string(s.mouse)}`, margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_idx:       ${mouse_idx}`          , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_down:      ${s.mouse_down}`       , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`drag_node_idx:   ${s.drag_node.idx}`    , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_in_center: ${mouse_in_center}`    , margin, margin + (text_i++) * 20)
 
 		let swaps_text = "swaps:         "
 		if (s.swaps_len === 0) {
