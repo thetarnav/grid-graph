@@ -218,6 +218,14 @@ function vec_moved(v, angle, dist) {
 }
 
 /**
+ * @param   {Vec2}   a
+ * @param   {Vec2}   b
+ * @returns {number} */
+function cross(a, b) {
+	return a.x * b.y - a.y * b.x
+}
+
+/**
  * @param   {Vec2}   start
  * @param   {Vec2}   ctrl_1
  * @param   {Vec2}   ctrl_2
@@ -230,6 +238,22 @@ function get_bezier_point(start, ctrl_1, ctrl_2, end, t) {
 		(u*u*u * start.x) + (3 * u*u*t * ctrl_1.x) + (3 * u*t*t * ctrl_2.x) + (t*t*t * end.x),
 		(u*u*u * start.y) + (3 * u*u*t * ctrl_1.y) + (3 * u*t*t * ctrl_2.y) + (t*t*t * end.y),
 	)
+}
+
+/**
+ * @param   {Vec2}    p1
+ * @param   {Vec2}    p2
+ * @param   {Vec2}    p3
+ * @param   {Vec2}    p4
+ * @returns {boolean} */
+function segments_intersecting(p1, p2, p3, p4) {
+	let d1 = cross(vec_diff(p1, p3), vec_diff(p4, p3))
+	let d2 = cross(vec_diff(p2, p3), vec_diff(p4, p3))
+	let d3 = cross(vec_diff(p3, p1), vec_diff(p2, p1))
+	let d4 = cross(vec_diff(p4, p1), vec_diff(p2, p1))
+
+    // if the cross products have different signs, the segments intersect
+    return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
 /** @typedef {CanvasRenderingContext2D} Ctx2D */
@@ -281,6 +305,7 @@ function node_at(s, idx) {
 class Edge {
 	a = make_node()
 	b = make_node()
+	intersecting_draw = false
 }
 /**
  * @param   {Node} a
@@ -443,6 +468,22 @@ function draw_box_rounded(ctx, x, y, w, h, radius) {
 }
 
 /**
+ * @param   {State} s
+ * @param   {number} x
+ * @param   {number} y
+ * @returns {void}   */
+function add_draw_point(s, x, y) {
+	if (s.draw_len + 2 >= s.draw_points.length) {
+		s.draw_points[0] = s.draw_points[s.draw_len-2]
+		s.draw_points[1] = s.draw_points[s.draw_len-1]
+		s.draw_len = 2
+	}
+	s.draw_points[s.draw_len+0] = x
+	s.draw_points[s.draw_len+1] = y
+	s.draw_len += 2
+}
+
+/**
  * @param   {State } s 
  * @param   {number} delta 
  * @returns {void}   */
@@ -518,10 +559,8 @@ function frame(s, delta) { // TODO: use delta
 			s.dragging       = true
 		} else {
 			// start drawing
-			s.draw_points[0] = s.mouse.x
-			s.draw_points[1] = s.mouse.y
-			s.draw_len       = 2
-			s.drawing        = true
+			s.drawing = true
+			add_draw_point(s, s.mouse.x, s.mouse.y)
 		}
 
 		break
@@ -539,17 +578,39 @@ function frame(s, delta) { // TODO: use delta
 		break
 	case s.mouse_down && s.drawing:
 		// continue drawing
-		if (s.draw_len + 2 >= s.draw_points.length) {
-			s.draw_len = 0
+		add_draw_point(s, s.mouse.x, s.mouse.y)
+
+		// check collisions with edges
+
+		let start_x = s.draw_points[s.draw_len-4]
+		let start_y = s.draw_points[s.draw_len-3]
+		let end_x   = s.draw_points[s.draw_len-2]
+		let end_y   = s.draw_points[s.draw_len-1]
+
+		let start = vec2(start_x, start_y)
+		let end   = vec2(end_x, end_y)
+
+		for (let edge of s.edges) {
+			let a_pos = node_to_pos_center(edge.a)
+			let b_pos = node_to_pos_center(edge.b)
+
+			if (!edge.intersecting_draw) {
+				edge.intersecting_draw = segments_intersecting(start, end, a_pos, b_pos)
+			}
 		}
-		s.draw_points[s.draw_len+0] = s.mouse.x
-		s.draw_points[s.draw_len+1] = s.mouse.y
-		s.draw_len += 2
 		break
 	case !s.mouse_down && s.draw_len > 0:
 		// stop drawing
 		s.draw_len = 0
 		s.drawing  = false
+
+		// cut edges
+		for (let i = s.edges.length - 1; i >= 0; i -= 1) {
+			if (s.edges[i].intersecting_draw) {
+				s.edges.splice(i, 1)
+			}
+		}
+
 		break
 	case s.mouse_down && s.drag_node.idx !== -1:
 
@@ -634,7 +695,6 @@ function frame(s, delta) { // TODO: use delta
 
 	// Draw edges
 
-	s.ctx.strokeStyle = ORANGE
 	s.ctx.lineWidth   = 4
 	s.ctx.lineCap     = "round"
 
@@ -644,12 +704,14 @@ function frame(s, delta) { // TODO: use delta
 
 		s.ctx.beginPath()
 		s.ctx.moveTo(a_pos.x, a_pos.y)
-		const t = bounce(abs(a_pos.x - b_pos.x) / CELL_SIZE + 1, 0, 1)
-		s.ctx.bezierCurveTo(
-			b_pos.x + CELL_SIZE/2 * t, a_pos.y,
-			a_pos.x + CELL_SIZE/2 * t, b_pos.y,
-			b_pos.x, b_pos.y,
-		)
+		// const t = bounce(abs(a_pos.x - b_pos.x) / CELL_SIZE + 1, 0, 1)
+		// s.ctx.bezierCurveTo(
+		// 	b_pos.x + CELL_SIZE/2 * t, a_pos.y,
+		// 	a_pos.x + CELL_SIZE/2 * t, b_pos.y,
+		// 	b_pos.x, b_pos.y,
+		// )
+		s.ctx.lineTo(b_pos.x, b_pos.y)
+		s.ctx.strokeStyle = edge.intersecting_draw ? RED : ORANGE
 		s.ctx.stroke()
 	}
 
