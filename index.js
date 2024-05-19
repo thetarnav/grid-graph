@@ -218,33 +218,18 @@ function vec_moved(v, angle, dist) {
 }
 
 /**
- * @param   {Vec2} start
- * @param   {Vec2} control_1
- * @param   {Vec2} control_2
- * @param   {Vec2} end
+ * @param   {Vec2}   start
+ * @param   {Vec2}   ctrl_1
+ * @param   {Vec2}   ctrl_2
+ * @param   {Vec2}   end
  * @param   {number} t
- * @returns {Vec2} */
-function get_bezier_point(start, control_1, control_2, end, t) {
-	let u   = 1 - t
-    let tt  = t * t
-    let uu  = u * u
-    let uuu = uu * u
-    let ttt = tt * t
-    let p   = new Vec2()
-
-    p.x = uuu * start.x // influence of start point
-    p.y = uuu * start.y
-
-    p.x += 3 * uu * t * control_1.x // influence of control point 1
-    p.y += 3 * uu * t * control_1.y
-
-    p.x += 3 * u * tt * control_2.x // influence of control point 2
-    p.y += 3 * u * tt * control_2.y
-
-    p.x += ttt * end.x // influence of end point
-    p.y += ttt * end.y
-
-    return p
+ * @returns {Vec2}   */
+function get_bezier_point(start, ctrl_1, ctrl_2, end, t) {
+	let u = 1 - t
+    return vec2(
+		(u*u*u * start.x) + (3 * u*u*t * ctrl_1.x) + (3 * u*t*t * ctrl_2.x) + (t*t*t * end.x),
+		(u*u*u * start.y) + (3 * u*u*t * ctrl_1.y) + (3 * u*t*t * ctrl_2.y) + (t*t*t * end.y),
+	)
 }
 
 /** @typedef {CanvasRenderingContext2D} Ctx2D */
