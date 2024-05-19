@@ -217,6 +217,36 @@ function vec_moved(v, angle, dist) {
 	return vec2(v.x + cos(angle) * dist, v.y + sin(angle) * dist)
 }
 
+/**
+ * @param   {Vec2} start
+ * @param   {Vec2} control_1
+ * @param   {Vec2} control_2
+ * @param   {Vec2} end
+ * @param   {number} t
+ * @returns {Vec2} */
+function get_bezier_point(start, control_1, control_2, end, t) {
+	let u   = 1 - t
+    let tt  = t * t
+    let uu  = u * u
+    let uuu = uu * u
+    let ttt = tt * t
+    let p   = new Vec2()
+
+    p.x = uuu * start.x // influence of start point
+    p.y = uuu * start.y
+
+    p.x += 3 * uu * t * control_1.x // influence of control point 1
+    p.y += 3 * uu * t * control_1.y
+
+    p.x += 3 * u * tt * control_2.x // influence of control point 2
+    p.y += 3 * u * tt * control_2.y
+
+    p.x += ttt * end.x // influence of end point
+    p.y += ttt * end.y
+
+    return p
+}
+
 /** @typedef {CanvasRenderingContext2D} Ctx2D */
 
 class State {
@@ -236,7 +266,7 @@ class State {
 	                      // because drag_idx is set to -1 when the drag is stopped for any reason
 	swaps         = /** @type {number[]} */(new Array(100))
 	swaps_len     = 0
-	draw_points   = new Float64Array(1024)
+	draw_points   = new Float64Array(512)
 	draw_len	  = 0
 	drawing	      = false
 	nodes         = /** @type {Node[]} */ ([])
