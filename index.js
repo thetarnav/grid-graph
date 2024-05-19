@@ -14,19 +14,6 @@ const random = Math.random
 const pow    = Math.pow
 const hypot  = Math.hypot
 
-const ORANGE = "#FFCD73"
-const RED    = "#E61400"
-const BLUE   = "#0050BE"
-const WHITE  = "#f6eee0"
-const BLACK  = "#1a1a1a"
-
-const CELL_SIZE           = 100
-const NODE_SIZE	          = 70
-const NODE_MARGIN	      = (CELL_SIZE - NODE_SIZE) / 2
-const NODE_SWAP_THRESHOLD = 0.6 * Math.sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
-const GRID_WIDTH          = 12
-const GRID_ALL_CELLS      = GRID_WIDTH * GRID_WIDTH
-
 /**
  * @param   {number} a 
  * @param   {number} b 
@@ -257,6 +244,22 @@ function segments_intersecting(p1, p2, p3, p4) {
     return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
+
+const ORANGE = "#FFCD73"
+const RED    = "#E61400"
+const BLUE   = "#0050BE"
+const WHITE  = "#f6eee0"
+const BLACK  = "#1a1a1a"
+
+const CELL_SIZE           = 100
+const NODE_SIZE	          = 70
+const NODE_MARGIN	      = (CELL_SIZE - NODE_SIZE) / 2
+const NODE_SWAP_THRESHOLD = 0.6 * Math.sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
+const GRID_WIDTH          = 12
+const GRID_ALL_CELLS      = GRID_WIDTH * GRID_WIDTH
+const DRAW_POINTS_MAX     = 32
+
+
 /** @typedef {CanvasRenderingContext2D} Ctx2D */
 
 class State {
@@ -276,7 +279,7 @@ class State {
 	                      // because drag_idx is set to -1 when the drag is stopped for any reason
 	swaps         = /** @type {number[]} */(new Array(100))
 	swaps_len     = 0
-	draw_points   = new Float64Array(512)
+	draw_points   = new Float64Array(DRAW_POINTS_MAX)
 	draw_len	  = 0
 	drawing	      = false
 	nodes         = /** @type {Node[]} */ ([])
@@ -474,14 +477,16 @@ function draw_box_rounded(ctx, x, y, w, h, radius) {
  * @param   {number} y
  * @returns {void}   */
 function add_draw_point(s, x, y) {
-	if (s.draw_len + 2 >= s.draw_points.length) {
-		s.draw_points[0] = s.draw_points[s.draw_len-2]
-		s.draw_points[1] = s.draw_points[s.draw_len-1]
-		s.draw_len = 2
-	}
 	s.draw_points[s.draw_len+0] = x
 	s.draw_points[s.draw_len+1] = y
-	s.draw_len += 2
+	if (s.draw_len >= DRAW_POINTS_MAX - 2) {
+		for (let i = 0; i < DRAW_POINTS_MAX - 2; i += 2) {
+			s.draw_points[i+0] = s.draw_points[i+2]
+			s.draw_points[i+1] = s.draw_points[i+3]
+		}
+	} else {
+		s.draw_len += 2
+	}
 }
 
 /**
