@@ -1,9 +1,11 @@
 const TAU = 6.283185307179586
+const PI  = Math.PI
 
 const max    = Math.max
 const min    = Math.min
 const abs    = Math.abs
 const sin    = Math.sin
+const asin   = Math.asin
 const cos    = Math.cos
 const atan2  = Math.atan2
 const sqrt   = Math.sqrt
@@ -204,7 +206,26 @@ function vec_move(v, angle, dist) {
 function vec_moved(v, angle, dist) {
 	return vec2(v.x + cos(angle) * dist, v.y + sin(angle) * dist)
 }
-
+/**
+ * @param   {Vec2} v
+ * @returns {void} */
+function vec_normalize(v) {
+	let len = hypot(v.x, v.y)
+	if (len !== 0) {
+		v.x /= len
+		v.y /= len
+	}
+}
+/**
+ * @param   {Vec2} v
+ * @returns {Vec2} */
+function vec_normalized(v) {
+	let len = hypot(v.x, v.y)
+	if (len !== 0) {
+		return vec2(v.x / len, v.y / len)
+	}
+	return new Vec2()
+}
 /**
  * @param   {Vec2}   a
  * @param   {Vec2}   b
@@ -327,7 +348,7 @@ function edge(a, b) {
  * @param   {Node}  b
  * @returns {void}  */
 function connect_nodes(s, a, b) {
-	if (a.idx !== -1 && b.idx !== -1) {
+	if (a.idx !== -1 && b.idx !== -1 && a !== b) {
 		s.edges.push(edge(a, b))
 	}
 }
@@ -469,6 +490,26 @@ function draw_box_rounded(ctx, x, y, w, h, radius) {
 	ctx.arcTo(x + w, y + h, x, y + h, radius)
 	ctx.arcTo(x, y + h, x, y, radius)
 	ctx.arcTo(x, y, x + w, y, radius)
+}
+
+/**
+ * @param   {Ctx2D}  ctx
+ * @param   {Vec2}   a 
+ * @param   {Vec2}   b 
+ * @param   {number} distance
+ * @returns {void}   */
+function draw_arc_between(ctx, a, b, distance) {
+	let lx    = b.x - a.x
+	let ly    = b.y - a.y
+	let l     = sqrt(lx*lx + ly*ly)
+	let mid   = vec2(a.x + lx/2, a.y + ly/2)
+	let angle = atan2(ly, lx)
+	let moved = vec_moved(mid, angle - PI/2, distance)
+	let r     = vec_distance(a, moved)
+	let swap  = asin(l / (2*r))
+
+	ctx.beginPath()
+	ctx.arc(moved.x, moved.y, r, angle + PI/2 - swap, angle + PI/2 + swap)
 }
 
 /**
@@ -652,18 +693,21 @@ function frame(s, delta) { // TODO: use delta
 	s.ctx.lineCap     = "round"
 
 	for (let edge of s.edges) {
+		console.assert(edge.a.idx !== -1 && edge.b.idx !== -1)
+		console.assert(edge.a !== edge.b)
 		let a_pos = node_to_pos_center(edge.a)
 		let b_pos = node_to_pos_center(edge.b)
 
-		s.ctx.beginPath()
-		s.ctx.moveTo(a_pos.x, a_pos.y)
+		// s.ctx.beginPath()
+		// s.ctx.moveTo(a_pos.x, a_pos.y)
 		// const t = bounce(abs(a_pos.x - b_pos.x) / CELL_SIZE + 1, 0, 1)
 		// s.ctx.bezierCurveTo(
-		// 	b_pos.x + CELL_SIZE/2 * t, a_pos.y,
-		// 	a_pos.x + CELL_SIZE/2 * t, b_pos.y,
-		// 	b_pos.x, b_pos.y,
-		// )
-		s.ctx.lineTo(b_pos.x, b_pos.y)
+			// 	b_pos.x + CELL_SIZE/2 * t, a_pos.y,
+			// 	a_pos.x + CELL_SIZE/2 * t, b_pos.y,
+			// 	b_pos.x, b_pos.y,
+			// )
+		// s.ctx.lineTo(b_pos.x, b_pos.y)
+		draw_arc_between(s.ctx, a_pos, b_pos, vec_distance(a_pos, b_pos) / 2)
 		s.ctx.strokeStyle = edge.intersecting_draw ? RED : ORANGE
 		s.ctx.stroke()
 	}
