@@ -234,6 +234,12 @@ function cross(a, b) {
 	return a.x * b.y - a.y * b.x
 }
 
+class Arc extends Vec2 {
+	radius      = 0
+	angle_start = 0
+	angle_end   = 0
+}
+
 /**
  * @param   {Vec2}   start
  * @param   {Vec2}   ctrl_1
@@ -265,6 +271,73 @@ function segments_intersecting(p1, p2, p3, p4) {
     return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
+/**
+ * @param   {number} angle 
+ * @returns {number} */
+function angle_normalized(angle) {
+	return ((angle % TAU) + TAU) % TAU
+}
+
+/**
+ * @param   {number}  angle 
+ * @param   {number}  start 
+ * @param   {number}  end 
+ * @returns {boolean} */
+function angle_in_range(angle, start, end) {
+    angle = angle_normalized(angle)
+    start = angle_normalized(start)
+    end   = angle_normalized(end)
+
+	return start < end
+		? start <= angle && angle <= end
+		: start <= angle || angle <= end
+}
+
+/**
+ * @param   {Arc}     arc
+ * @param   {Vec2}    start
+ * @param   {Vec2}    end
+ * @returns {boolean} */
+function arc_segment_intersecting(arc, start, end) {
+	let dist_start = vec_distance(start, arc)
+	let dist_end   = vec_distance(end, arc)
+
+	let in_circle = (dist_start <  arc.radius && dist_end >= arc.radius) ||
+	                (dist_start >= arc.radius && dist_end <  arc.radius)
+
+	if (!in_circle) {
+		return false
+	}
+
+	let angle_start = vec_angle(arc, start)
+	let angle_end   = vec_angle(arc, end)
+
+	return angle_in_range(angle_start, arc.angle_start, arc.angle_end) ||
+	       angle_in_range(angle_end,   arc.angle_start, arc.angle_end)
+}
+
+/**
+ * @param   {Vec2} a
+ * @param   {Vec2} b
+ * @returns {Arc}  */
+function get_arc_between(a, b) {
+	let dist  = vec_distance(a, b) / 2
+	let lx    = b.x - a.x
+	let ly    = b.y - a.y
+	let l     = sqrt(lx*lx + ly*ly)
+	let mid   = vec2(a.x + lx/2, a.y + ly/2)
+	let angle = atan2(ly, lx)
+	let moved = vec_moved(mid, angle - PI/2, dist)
+	let r     = vec_distance(a, moved)
+	let swap  = asin(l / (2*r))
+	let arc   = new Arc()
+	arc.x           = moved.x
+	arc.y           = moved.y
+	arc.radius      = r
+	arc.angle_start = angle + PI/2 - swap
+	arc.angle_end   = angle + PI/2 + swap
+	return arc
+}
 
 const ORANGE = "#FFCD73"
 const RED    = "#E61400"
@@ -494,22 +567,13 @@ function draw_box_rounded(ctx, x, y, w, h, radius) {
 
 /**
  * @param   {Ctx2D}  ctx
- * @param   {Vec2}   a 
- * @param   {Vec2}   b 
- * @param   {number} distance
+ * @param   {Vec2}   a
+ * @param   {Vec2}   b
  * @returns {void}   */
-function draw_arc_between(ctx, a, b, distance) {
-	let lx    = b.x - a.x
-	let ly    = b.y - a.y
-	let l     = sqrt(lx*lx + ly*ly)
-	let mid   = vec2(a.x + lx/2, a.y + ly/2)
-	let angle = atan2(ly, lx)
-	let moved = vec_moved(mid, angle - PI/2, distance)
-	let r     = vec_distance(a, moved)
-	let swap  = asin(l / (2*r))
-
+function draw_arc_between(ctx, a, b) {
 	ctx.beginPath()
-	ctx.arc(moved.x, moved.y, r, angle + PI/2 - swap, angle + PI/2 + swap)
+	let arc = get_arc_between(a, b)
+	ctx.arc(arc.x, arc.y, arc.radius, arc.angle_start, arc.angle_end)
 }
 
 /**
@@ -590,7 +654,8 @@ function frame(s, delta) { // TODO: use delta
 			let b_pos = node_to_pos_center(edge.b)
 
 			if (!edge.intersecting_draw) {
-				edge.intersecting_draw = segments_intersecting(start, end, a_pos, b_pos)
+				// edge.intersecting_draw = segments_intersecting(start, end, a_pos, b_pos)
+				edge.intersecting_draw = arc_segment_intersecting(get_arc_between(a_pos, b_pos), start, end)
 			}
 		}
 		break
@@ -707,7 +772,7 @@ function frame(s, delta) { // TODO: use delta
 			// 	b_pos.x, b_pos.y,
 			// )
 		// s.ctx.lineTo(b_pos.x, b_pos.y)
-		draw_arc_between(s.ctx, a_pos, b_pos, vec_distance(a_pos, b_pos) / 2)
+		draw_arc_between(s.ctx, a_pos, b_pos)
 		s.ctx.strokeStyle = edge.intersecting_draw ? RED : ORANGE
 		s.ctx.stroke()
 	}
