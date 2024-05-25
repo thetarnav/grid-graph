@@ -356,11 +356,25 @@ function arc_segment_intersecting(arc, start, end) {
 }
 
 /**
- * @param   {Vec2} a
- * @param   {Vec2} b
- * @returns {Arc}  */
-function get_arc_between(a, b) {
-	let dist  = vec_distance(a, b) / 2
+ * @param   {Vec2}   a
+ * @param   {Vec2}   b
+ * @param   {number} dist
+ * @returns {Arc}    */
+function arc_between(a, b, dist) {
+	if (dist < 0) {
+		return arc_between(b, a, -dist)
+	}
+
+	if (dist === 0) {
+		let arc = new Arc()
+		arc.x     = (a.x + b.x) / 2
+		arc.y     = (a.y + b.y) / 2
+		arc.r     = vec_distance(a, b) / 2
+		arc.start = atan2(b.y - a.y, b.x - a.x)
+		arc.end   = arc.start + PI
+		return arc
+	}
+	
 	let lx    = b.x - a.x
 	let ly    = b.y - a.y
 	let l     = sqrt(lx*lx + ly*ly)
@@ -452,6 +466,7 @@ class Edge {
 	a = make_node()
 	b = make_node()
 	intersecting_draw = false
+	arc_dist = 0
 }
 /**
  * @param   {Node} a
@@ -636,10 +651,11 @@ function draw_rect_rounded(ctx, rect, r) {
  * @param   {Ctx2D}  ctx
  * @param   {Vec2}   a
  * @param   {Vec2}   b
+ * @param   {number} dist
  * @returns {void}   */
-function draw_arc_between(ctx, a, b) {
+function draw_arc_between(ctx, a, b, dist) {
 	ctx.beginPath()
-	let arc = get_arc_between(a, b)
+	let arc = arc_between(a, b, dist)
 	ctx.arc(arc.x, arc.y, arc.r, arc.start, arc.end)
 }
 
@@ -723,7 +739,8 @@ function frame(s, delta) { // TODO: use delta
 
 			if (!edge.intersecting_draw) {
 				// edge.intersecting_draw = segments_intersecting(start, end, a_pos, b_pos)
-				edge.intersecting_draw = arc_segment_intersecting(get_arc_between(a_pos, b_pos), start, end)
+				let arc = arc_between(a_pos, b_pos, edge.arc_dist)
+				edge.intersecting_draw = arc_segment_intersecting(arc, start, end)
 			}
 		}
 		break
@@ -831,6 +848,10 @@ function frame(s, delta) { // TODO: use delta
 		let a_pos = node_to_pos_center(edge.a)
 		let b_pos = node_to_pos_center(edge.b)
 
+		// edge.arc_dist = vec_distance(a_pos, b_pos) / 2
+		// edge.arc_dist = vec_distance(a_pos, b_pos)
+		edge.arc_dist = 0
+
 		// s.ctx.beginPath()
 		// s.ctx.moveTo(a_pos.x, a_pos.y)
 		// const t = bounce(abs(a_pos.x - b_pos.x) / CELL_SIZE + 1, 0, 1)
@@ -840,7 +861,7 @@ function frame(s, delta) { // TODO: use delta
 			// 	b_pos.x, b_pos.y,
 			// )
 		// s.ctx.lineTo(b_pos.x, b_pos.y)
-		draw_arc_between(s.ctx, a_pos, b_pos)
+		draw_arc_between(s.ctx, a_pos, b_pos, edge.arc_dist)
 		s.ctx.strokeStyle = edge.intersecting_draw ? RED : ORANGE
 		s.ctx.stroke()
 	}
