@@ -117,6 +117,21 @@ function vec_diff(a, b) {
 	return vec2(a.x - b.x, a.y - b.y)
 }
 /**
+ * @param   {Vec2}   a
+ * @param   {number} b
+ * @returns {void}   */
+function vec_sub_scalar(a, b) {
+	a.x -= b
+	a.y -= b
+}
+/**
+ * @param   {Vec2}   a
+ * @param   {number} b
+ * @returns {Vec2}   */
+function vec_diff_scalar(a, b) {
+	return vec2(a.x - b, a.y - b)
+}
+/**
  * @param   {Vec2} a
  * @param   {Vec2} b
  * @returns {void} */
@@ -719,7 +734,7 @@ function frame(s, delta) { // TODO: use delta
 				to_node.idx = from_idx
 			}
 		} else {
-			// draw swap indicator
+			// draw connect indicator
 
 			let drag_node_pos = node_to_pos_center(s.drag_node)
 			let mouse_pos     = idx_num_to_pos(mouse_idx)
@@ -790,7 +805,12 @@ function frame(s, delta) { // TODO: use delta
 	for (let node of s.nodes) {
 		console.assert(node.idx !== -1)
 
-		let goal = idx_num_to_pos(node.idx)
+		// keep dragged node on mouse pos
+		// and the rest, snapped to grid
+		let goal = s.drag_node === node
+			? vec_diff_scalar(s.mouse, CELL_SIZE/2)
+			: idx_num_to_pos(node.idx)
+		
 		let diff = vec_diff(goal, node.pos)
 		vec_mul_scalar(diff, 0.22)
 		vec_add(node.pos, diff)
