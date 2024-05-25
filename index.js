@@ -250,9 +250,29 @@ function cross(a, b) {
 }
 
 class Arc extends Vec2 {
-	radius      = 0
-	angle_start = 0
-	angle_end   = 0
+	r     = 0
+	start = 0
+	end   = 0
+}
+
+class Rect extends Vec2 {
+	w = 0
+	h = 0
+}
+
+/**
+ * @param   {number} x
+ * @param   {number} y
+ * @param   {number} w
+ * @param   {number} h
+ * @returns {Rect}   */
+function rect(x, y, w, h) {
+	let r = new Rect()
+	r.x = x
+	r.y = y
+	r.w = w
+	r.h = h
+	return r
 }
 
 /**
@@ -323,16 +343,16 @@ function arc_segment_intersecting(arc, start, end) {
 	let dist_start = vec_distance(start, arc)
 	let dist_end   = vec_distance(end, arc)
 
-	let crossing = (dist_start <  arc.radius && dist_end >= arc.radius) ||
-	               (dist_start >= arc.radius && dist_end <  arc.radius)
+	let crossing = (dist_start <  arc.r && dist_end >= arc.r) ||
+	               (dist_start >= arc.r && dist_end <  arc.r)
 
 	if (!crossing) return false
 
 	let angle_start = vec_angle(arc, start)
 	let angle_end   = vec_angle(arc, end)
 
-	return angle_in_range(angle_start, arc.angle_start, arc.angle_end) ||
-	       angle_in_range(angle_end,   arc.angle_start, arc.angle_end)
+	return angle_in_range(angle_start, arc.start, arc.end) ||
+	       angle_in_range(angle_end,   arc.start, arc.end)
 }
 
 /**
@@ -350,12 +370,21 @@ function get_arc_between(a, b) {
 	let r     = vec_distance(a, moved)
 	let swap  = asin(l / (2*r))
 	let arc   = new Arc()
-	arc.x           = moved.x
-	arc.y           = moved.y
-	arc.radius      = r
-	arc.angle_start = angle + PI/2 - swap
-	arc.angle_end   = angle + PI/2 + swap
+	arc.x     = moved.x
+	arc.y     = moved.y
+	arc.r     = r
+	arc.start = angle + PI/2 - swap
+	arc.end   = angle + PI/2 + swap
 	return arc
+}
+
+/**
+ * @param   {Vec2}    point
+ * @param   {Rect}    rect
+ * @returns {boolean} */
+function is_point_in_rect(point, rect) {
+	return point.x >= rect.x && point.x <= rect.x + rect.w &&
+	       point.y >= rect.y && point.y <= rect.y + rect.h
 }
 
 const ORANGE = "#FFCD73"
@@ -459,6 +488,27 @@ function is_connected(s, a, b) {
 		}
 	}
 	return false
+}
+
+/**
+ * @param   {Node} node 
+ * @returns {Rect} */
+function node_rect(node) {
+	let rect = new Rect()
+	rect.x = node.pos.x + NODE_MARGIN
+	rect.y = node.pos.y + NODE_MARGIN
+	rect.w = NODE_SIZE
+	rect.h = NODE_SIZE
+	return rect
+}
+
+/**
+ * @param   {Vec2}   pos
+ * @param   {Node}   node
+ * @returns {boolean} */
+function is_pos_in_node(pos, node) {
+	let rect = node_rect(node)
+	return is_point_in_rect(pos, rect)
 }
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -569,19 +619,17 @@ function vec_string(v) {
 
 /**
  * @param   {Ctx2D}  ctx
- * @param   {number} x
- * @param   {number} y
- * @param   {number} w
- * @param   {number} h
- * @param   {number} radius
+ * @param   {Rect}   rect
+ * @param   {number} r
  * @returns {void}   */
-function draw_box_rounded(ctx, x, y, w, h, radius) {
+function draw_rect_rounded(ctx, rect, r) {
+	let {x, y, w, h} = rect
 	ctx.beginPath()
-	ctx.moveTo(x + radius, y)
-	ctx.arcTo(x + w, y, x + w, y + h, radius)
-	ctx.arcTo(x + w, y + h, x, y + h, radius)
-	ctx.arcTo(x, y + h, x, y, radius)
-	ctx.arcTo(x, y, x + w, y, radius)
+	ctx.moveTo(x + r, y)
+	ctx.arcTo(x+w, y  , x+w, y+h, r)
+	ctx.arcTo(x+w, y+h, x  , y+h, r)
+	ctx.arcTo(x  , y+h, x  , y  , r)
+	ctx.arcTo(x  , y  , x+w, y  , r)
 }
 
 /**
@@ -592,7 +640,7 @@ function draw_box_rounded(ctx, x, y, w, h, radius) {
 function draw_arc_between(ctx, a, b) {
 	ctx.beginPath()
 	let arc = get_arc_between(a, b)
-	ctx.arc(arc.x, arc.y, arc.radius, arc.angle_start, arc.angle_end)
+	ctx.arc(arc.x, arc.y, arc.r, arc.start, arc.end)
 }
 
 /**
@@ -630,7 +678,8 @@ function frame(s, delta) { // TODO: use delta
 	switch (true) {
 	case s.mouse_down && !s.dragging && !s.drawing:
 
-		if (mouse_node.id !== "") {
+		// is hoverig node
+		if (mouse_node.id !== "" && is_pos_in_node(s.mouse, mouse_node)) {
 			// start dragging
 			s.drag_node      = mouse_node
 			s.drag_start_idx = mouse_idx
@@ -766,7 +815,7 @@ function frame(s, delta) { // TODO: use delta
 
 	if (mouse_idx !== -1) {
 		let pos = idx_num_to_pos(mouse_idx)
-		draw_box_rounded(s.ctx, pos.x, pos.y, CELL_SIZE, CELL_SIZE, 10)
+		draw_rect_rounded(s.ctx, rect(pos.x, pos.y, CELL_SIZE, CELL_SIZE), 10)
 		s.ctx.fillStyle = BLACK + "10"
 		s.ctx.fill()
 	}
@@ -815,7 +864,7 @@ function frame(s, delta) { // TODO: use delta
 		vec_mul_scalar(diff, 0.22)
 		vec_add(node.pos, diff)
 
-		draw_box_rounded(s.ctx, node.pos.x + NODE_MARGIN, node.pos.y + NODE_MARGIN, NODE_SIZE, NODE_SIZE, 10)
+		draw_rect_rounded(s.ctx, node_rect(node), 10)
 		s.ctx.fillStyle = BLACK + (s.drag_node === node ? "ff" : "dd")
 		s.ctx.fill()
 
