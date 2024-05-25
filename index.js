@@ -294,6 +294,12 @@ function angle_in_range(angle, start, end) {
 }
 
 /**
+ * This checks intersection of a segment with an arc.               \
+ * But the arc has to be larger than the segment.                   \
+ * The segment can cross the arc from the inside,                   \
+ * or from the outside.                                             \
+ * But the circle making the arc, cannot be impaled by the segment.
+ * 
  * @param   {Arc}     arc
  * @param   {Vec2}    start
  * @param   {Vec2}    end
@@ -302,12 +308,10 @@ function arc_segment_intersecting(arc, start, end) {
 	let dist_start = vec_distance(start, arc)
 	let dist_end   = vec_distance(end, arc)
 
-	let in_circle = (dist_start <  arc.radius && dist_end >= arc.radius) ||
-	                (dist_start >= arc.radius && dist_end <  arc.radius)
+	let crossing = (dist_start <  arc.radius && dist_end >= arc.radius) ||
+	               (dist_start >= arc.radius && dist_end <  arc.radius)
 
-	if (!in_circle) {
-		return false
-	}
+	if (!crossing) return false
 
 	let angle_start = vec_angle(arc, start)
 	let angle_end   = vec_angle(arc, end)
@@ -348,7 +352,7 @@ const BLACK  = "#1a1a1a"
 const CELL_SIZE           = 100
 const NODE_SIZE	          = 70
 const NODE_MARGIN	      = (CELL_SIZE - NODE_SIZE) / 2
-const NODE_SWAP_THRESHOLD = 0.6 * Math.sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
+const NODE_SWAP_THRESHOLD = 0.5 * Math.sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
 const GRID_WIDTH          = 12
 const GRID_ALL_CELLS      = GRID_WIDTH * GRID_WIDTH
 const DRAW_POINTS_MAX     = 32
