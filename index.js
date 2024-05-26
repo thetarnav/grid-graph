@@ -307,6 +307,24 @@ function segments_intersecting(p1, p2, p3, p4) {
 }
 
 /**
+ * @param   {Vec2}   a
+ * @param   {Vec2}   b
+ * @param   {Vec2}   c
+ * @returns {number} */
+function angle_triangle(a, b, c) {
+	let angle = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x)
+	// ensure the angle is between 0 and 2π
+	if (angle < 0) {
+		angle += TAU
+	}
+	// Ensure the angle is no more than π
+	if (angle > PI) {
+		angle -= TAU
+	}
+	return angle
+}
+
+/**
  * @param   {number} angle 
  * @returns {number} */
 function angle_normalized(angle) {
@@ -326,6 +344,20 @@ function angle_in_range(angle, start, end) {
 	return start < end
 		? start <= angle && angle <= end
 		: start <= angle || angle <= end
+}
+
+/**
+ * @param   {number} rad
+ * @returns {number} */
+function rad_to_deg(rad) {
+	return rad * 180 / PI
+}
+
+/**
+ * @param   {number} angle
+ * @returns {string} */
+function angle_to_string(angle) {
+	return `${rad_to_deg(angle).toFixed(2)}°`
 }
 
 /**
@@ -678,6 +710,62 @@ function add_draw_point(s, x, y) {
 }
 
 /**
+ * edge arches are calculated to minimize edges overlapping with nodes
+ * 
+ * the algorithm tries multiple arc distances, and chooses the one with the least node overlap
+ * 
+ * TODO: could be optimized
+ * 
+ * @param   {State} s
+ * @returns {void}  */
+function update_edge_arches(s) {
+	for (let edge of s.edges) {
+		// use idx to get the center of the node
+		// because the node position is interpolated
+		let a_pos = idx_num_to_pos_center(edge.a.idx)
+		let b_pos = idx_num_to_pos_center(edge.b.idx)
+
+		let arc_dist        = vec_distance(a_pos, b_pos) * 4
+		let arc_dist_result = arc_dist
+
+		let node_dist_acc_result = 0
+
+		for (let i = 0; i < 14; i += 1) {
+			arc_dist /= arc_dist > 0 ? -1 : -2
+
+			let arc = arc_between(a_pos, b_pos, arc_dist)
+
+			let node_dist_acc = 0
+	
+			// TODO: only check nodes that are inside the arc, using the idx grid
+			for (let node of s.nodes) {
+				if (node === edge.a || node === edge.b) continue
+	
+				let node_pos = idx_num_to_pos_center(node.idx)
+
+				// is inside arc
+				if (!angle_in_range(vec_angle(arc, node_pos), arc.start, arc.end)) continue
+
+				let node_arc_dist = abs(vec_distance(arc, node_pos) - arc.r)
+				node_dist_acc += max(NODE_SIZE/2 - node_arc_dist, 0)
+			}
+
+			if (node_dist_acc === 0) {
+				arc_dist_result = arc_dist
+				break
+			}
+
+			if (node_dist_acc > node_dist_acc_result) {
+				node_dist_acc_result = node_dist_acc
+				arc_dist_result = arc_dist
+			}
+		}
+
+		edge.arc_dist = arc_dist_result
+	}
+}
+
+/**
  * @param   {State } s 
  * @param   {number} delta 
  * @returns {void}   */
@@ -689,7 +777,6 @@ function frame(s, delta) { // TODO: use delta
 
 	let mouse_node_center = idx_num_to_pos_center(mouse_idx)
 	let mouse_in_center   = vec_distance(mouse_node_center, s.mouse) < NODE_SWAP_THRESHOLD
-	
 
 	switch (true) {
 	case s.mouse_down && !s.dragging && !s.drawing:
@@ -711,6 +798,7 @@ function frame(s, delta) { // TODO: use delta
 		// add connection
 		if (!is_connected(s, s.drag_node, mouse_node)) {
 			connect_nodes(s, s.drag_node, mouse_node)
+			update_edge_arches(s)
 		}
 
 		// stop dragging
@@ -799,6 +887,8 @@ function frame(s, delta) { // TODO: use delta
 				s.swaps_len += 2
 				to_node.idx = from_idx
 			}
+
+			update_edge_arches(s)
 		} else {
 			// draw connect indicator
 
@@ -848,19 +938,6 @@ function frame(s, delta) { // TODO: use delta
 		let a_pos = node_to_pos_center(edge.a)
 		let b_pos = node_to_pos_center(edge.b)
 
-		// edge.arc_dist = vec_distance(a_pos, b_pos) / 2
-		// edge.arc_dist = vec_distance(a_pos, b_pos)
-		edge.arc_dist = 0
-
-		// s.ctx.beginPath()
-		// s.ctx.moveTo(a_pos.x, a_pos.y)
-		// const t = bounce(abs(a_pos.x - b_pos.x) / CELL_SIZE + 1, 0, 1)
-		// s.ctx.bezierCurveTo(
-			// 	b_pos.x + CELL_SIZE/2 * t, a_pos.y,
-			// 	a_pos.x + CELL_SIZE/2 * t, b_pos.y,
-			// 	b_pos.x, b_pos.y,
-			// )
-		// s.ctx.lineTo(b_pos.x, b_pos.y)
 		draw_arc_between(s.ctx, a_pos, b_pos, edge.arc_dist)
 		s.ctx.strokeStyle = edge.intersecting_draw ? RED : ORANGE
 		s.ctx.stroke()
@@ -956,8 +1033,9 @@ function main() {
 
 	s.grid = Array.from({length: GRID_ALL_CELLS}, make_node)
 
-	s.nodes = new Array(16)
-	for (let i = 0; i < 16; i += 1) {
+	const NODES = 16
+	s.nodes = new Array(NODES)
+	for (let i = 0; i < NODES; i += 1) {
 
 		let grid_idx = 0
 		do grid_idx = random_int(0, GRID_ALL_CELLS)
@@ -971,12 +1049,15 @@ function main() {
 		s.grid[grid_idx] = s.nodes[i]
 	}
 
-	for (let i = 0; i < 12; i += 1) {
+	const EDGES = 12
+	for (let i = 0; i < EDGES; i += 1) {
 		let a_idx = random_int(0, s.nodes.length-1)
 		let b_idx = random_int(a_idx+1, s.nodes.length)
 
 		connect_nodes(s, s.nodes[a_idx], s.nodes[b_idx])
 	}
+
+	update_edge_arches(s)
 
 	void requestAnimationFrame(prev_time => {
 		/** @type {FrameRequestCallback} */
