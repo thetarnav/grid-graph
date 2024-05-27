@@ -53,6 +53,24 @@ function random_int(min, max) {
 	return floor(random() * (max - min) + min)
 }
 
+/**
+ * @param   {number} a
+ * @param   {number} b
+ * @param   {number} t
+ * @returns {number} */
+function lerp(a, b, t) {
+	return a + (b - a) * t
+}
+
+/**
+ * @param   {number} value
+ * @param   {number} target
+ * @param   {number} max_delta
+ * @returns {number} */
+function move_towards(value, target, max_delta) {
+	return value + sign(target - value) * min(abs(target - value), max_delta)
+}
+
 class Vec2 {
 	x = 0
 	y = 0
@@ -242,6 +260,23 @@ function vec_normalized(v) {
 		return vec2(v.x / len, v.y / len)
 	}
 	return new Vec2()
+}
+/**
+ * @param   {Vec2}   a receiving
+ * @param   {Vec2}   b
+ * @param   {number} t
+ * @returns {void}   */
+function vec_lerp(a, b, t) {
+	a.x = lerp(a.x, b.x, t)
+	a.y = lerp(a.y, b.y, t)
+}
+/**
+ * @param   {Vec2}   a
+ * @param   {Vec2}   b
+ * @param   {number} t
+ * @returns {Vec2}   */
+function vec_lerped(a, b, t) {
+	return vec2(lerp(a.x, b.x, t), lerp(a.y, b.y, t))
 }
 /**
  * @param   {Vec2}   a
@@ -960,7 +995,7 @@ function frame(s, delta) { // TODO: use delta
 		let a_pos = node_to_pos_center(edge.a)
 		let b_pos = node_to_pos_center(edge.b)
 
-		edge.arc_t_draw += (edge.arc_t - edge.arc_t_draw) * 0.05
+		edge.arc_t_draw = lerp(edge.arc_t_draw, edge.arc_t, 0.05)
 
 		let dist = vec_distance(a_pos, b_pos) * edge_arc_t_to_multiplier(edge.arc_t_draw)
 		draw_arc_between(s.ctx, a_pos, b_pos, dist)
@@ -984,9 +1019,7 @@ function frame(s, delta) { // TODO: use delta
 			? vec_diff_scalar(s.mouse, CELL_SIZE/2)
 			: idx_num_to_pos(node.idx)
 		
-		let diff = vec_diff(goal, node.pos)
-		vec_mul_scalar(diff, 0.22)
-		vec_add(node.pos, diff)
+		vec_lerp(node.pos, goal, 0.22)
 
 		draw_rect_rounded(s.ctx, node_rect(node), 10)
 		s.ctx.fillStyle = BLACK
