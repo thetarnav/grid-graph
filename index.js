@@ -1,9 +1,11 @@
-const TAU = 6.283185307179586
-const PI  = Math.PI
+const TAU    = 6.283185307179586
+const PI     = Math.PI
+const SQRT2  = Math.SQRT2
 
 const max    = Math.max
 const min    = Math.min
 const abs    = Math.abs
+const sign   = Math.sign
 const sin    = Math.sin
 const asin   = Math.asin
 const cos    = Math.cos
@@ -440,9 +442,11 @@ const WHITE  = "#f6eee0"
 const BLACK  = "#1a1a1a"
 
 const CELL_SIZE           = 100
+const CELL_DIAGONAL       = SQRT2 * CELL_SIZE
 const NODE_SIZE	          = 70
+const NODE_DIAGONAL	      = SQRT2 * NODE_SIZE
 const NODE_MARGIN	      = (CELL_SIZE - NODE_SIZE) / 2
-const NODE_SWAP_THRESHOLD = 0.5 * Math.sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
+const NODE_SWAP_THRESHOLD = 0.5 * sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
 const GRID_WIDTH          = 12
 const GRID_ALL_CELLS      = GRID_WIDTH * GRID_WIDTH
 const DRAW_POINTS_MAX     = 32
@@ -495,10 +499,11 @@ function node_at(s, idx) {
 }
 
 class Edge {
-	a = make_node()
-	b = make_node()
+	a                 = make_node()
+	b                 = make_node()
 	intersecting_draw = false
-	arc_dist = 0
+	arc_t      = 0 // actual, for calculations
+	arc_t_draw = 0 // interpolated, for drawing
 }
 /**
  * @param   {Node} a
@@ -710,6 +715,19 @@ function add_draw_point(s, x, y) {
 }
 
 /**
+ * @param   {number} t
+ * @returns {number} */
+function edge_arc_t_to_multiplier(t) {
+	let m = abs(t)
+	m = 1 - Math.pow(2, -11 * m) // ease out
+	m = 20 * (1-m) + 0.1
+	if (t < 0) {
+		m = -m
+	}
+	return m
+}
+
+/**
  * edge arches are calculated to minimize edges overlapping with nodes
  * 
  * the algorithm tries multiple arc distances, and chooses the one with the least node overlap
@@ -725,17 +743,19 @@ function update_edge_arches(s) {
 		let a_pos = idx_num_to_pos_center(edge.a.idx)
 		let b_pos = idx_num_to_pos_center(edge.b.idx)
 
-		let arc_dist        = vec_distance(a_pos, b_pos) * 4
-		let arc_dist_result = arc_dist
+		let edge_dist = vec_distance(a_pos, b_pos)
 
-		let node_dist_acc_result = 0
+		let arc_t_result    = 0
+		let dist_acc_result = Infinity
+		
+		for (let i = 1; i < 2*12; i += 1) {
+			let arc_t = i % 2 === 0 ? i : -i + 1
+			arc_t /= 2*12
 
-		for (let i = 0; i < 14; i += 1) {
-			arc_dist /= arc_dist > 0 ? -1 : -2
-
+			let arc_dist = edge_dist * edge_arc_t_to_multiplier(arc_t)
 			let arc = arc_between(a_pos, b_pos, arc_dist)
 
-			let node_dist_acc = 0
+			let dist_acc = 0
 	
 			// TODO: only check nodes that are inside the arc, using the idx grid
 			for (let node of s.nodes) {
@@ -747,21 +767,21 @@ function update_edge_arches(s) {
 				if (!angle_in_range(vec_angle(arc, node_pos), arc.start, arc.end)) continue
 
 				let node_arc_dist = abs(vec_distance(arc, node_pos) - arc.r)
-				node_dist_acc += max(NODE_SIZE/2 - node_arc_dist, 0)
+				dist_acc += max(CELL_DIAGONAL/2 - node_arc_dist, 0)
 			}
 
-			if (node_dist_acc === 0) {
-				arc_dist_result = arc_dist
+			if (dist_acc < NODE_MARGIN) {
+				arc_t_result = arc_t
 				break
 			}
 
-			if (node_dist_acc > node_dist_acc_result) {
-				node_dist_acc_result = node_dist_acc
-				arc_dist_result = arc_dist
+			if (dist_acc < dist_acc_result) {
+				dist_acc_result = dist_acc
+				arc_t_result = arc_t
 			}
 		}
 
-		edge.arc_dist = arc_dist_result
+		edge.arc_t = arc_t_result
 	}
 }
 
@@ -827,7 +847,9 @@ function frame(s, delta) { // TODO: use delta
 
 			if (!edge.intersecting_draw) {
 				// edge.intersecting_draw = segments_intersecting(start, end, a_pos, b_pos)
-				let arc = arc_between(a_pos, b_pos, edge.arc_dist)
+
+				let dist = vec_distance(a_pos, b_pos) * edge_arc_t_to_multiplier(edge.arc_t_draw)
+				let arc = arc_between(a_pos, b_pos, dist)
 				edge.intersecting_draw = arc_segment_intersecting(arc, start, end)
 			}
 		}
@@ -938,7 +960,11 @@ function frame(s, delta) { // TODO: use delta
 		let a_pos = node_to_pos_center(edge.a)
 		let b_pos = node_to_pos_center(edge.b)
 
-		draw_arc_between(s.ctx, a_pos, b_pos, edge.arc_dist)
+		edge.arc_t_draw += (edge.arc_t - edge.arc_t_draw) * 0.05
+
+		let dist = vec_distance(a_pos, b_pos) * edge_arc_t_to_multiplier(edge.arc_t_draw)
+		draw_arc_between(s.ctx, a_pos, b_pos, dist)
+		
 		s.ctx.strokeStyle = edge.intersecting_draw ? RED : ORANGE
 		s.ctx.stroke()
 	}
@@ -963,7 +989,7 @@ function frame(s, delta) { // TODO: use delta
 		vec_add(node.pos, diff)
 
 		draw_rect_rounded(s.ctx, node_rect(node), 10)
-		s.ctx.fillStyle = BLACK + (s.drag_node === node ? "ff" : "dd")
+		s.ctx.fillStyle = BLACK
 		s.ctx.fill()
 
 		s.ctx.fillStyle = WHITE
@@ -1058,6 +1084,13 @@ function main() {
 	}
 
 	update_edge_arches(s)
+
+	for (let edge of s.edges) {
+		edge.arc_t_draw = edge.arc_t
+	}
+
+	// @ts-ignore
+	window.state = s
 
 	void requestAnimationFrame(prev_time => {
 		/** @type {FrameRequestCallback} */
