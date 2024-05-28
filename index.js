@@ -286,12 +286,13 @@ function cross(a, b) {
 	return a.x * b.y - a.y * b.x
 }
 
-class Arc extends Vec2 {
-	r     = 0
+class Circle extends Vec2 {
+	r = 0
+}
+class Arc extends Circle {
 	start = 0
 	end   = 0
 }
-
 class Rect extends Vec2 {
 	w = 0
 	h = 0
@@ -422,6 +423,37 @@ function arc_segment_intersecting(arc, start, end) {
 
 	return angle_in_range(angle_start, arc.start, arc.end) ||
 	       angle_in_range(angle_end,   arc.start, arc.end)
+}
+
+/**
+ * @param   {Arc}    arc
+ * @param   {Circle} circle
+ * @returns {boolean} */
+function arc_circle_intersecting(arc, circle) {
+	let dx   = circle.x - arc.x
+    let dy   = circle.y - arc.y
+    let dist = sqrt(dx * dx + dy * dy)
+
+	// if the circle is completely inside or outside the arc
+    if (dist < arc.r - circle.r || dist > arc.r + circle.r) {
+		return false
+    }
+
+	let start = arc.start % TAU
+	let end   = arc.end   % TAU
+
+    let start_x = arc.x + arc.r * cos(start)
+    let start_y = arc.y + arc.r * sin(start)
+    let end_x   = arc.x + arc.r * cos(end)
+    let end_y   = arc.y + arc.r * sin(end)
+
+	let diff_start_x = start_x - circle.x
+	let diff_start_y = start_y - circle.y
+	let diff_end_x   = end_x   - circle.x
+	let diff_end_y   = end_y   - circle.y
+
+    return (diff_start_x * diff_start_x + diff_start_y * diff_start_y <= circle.r * circle.r) ||
+           (diff_end_x   * diff_end_x   + diff_end_y   * diff_end_y   <= circle.r * circle.r)
 }
 
 /**
@@ -748,6 +780,47 @@ function add_draw_point(s, x, y) {
 		s.draw_len += 2
 	}
 }
+
+// /**
+//  * @param   {Arc}      arc
+//  * @returns {number[]} cell indices */
+// function arc_to_intersecting_cells(arc) {
+// 	let start_pos = vec2(arc.x + arc.r * cos(arc.start), arc.y + arc.r * sin(arc.start))
+// 	let end_pos   = vec2(arc.x + arc.r * cos(arc.end),   arc.y + arc.r * sin(arc.end))
+
+// 	let start_idx = pos_to_idx(start_pos)
+// 	let end_idx   = pos_to_idx(end_pos)
+	
+// 	let cells = []
+// 	let idx = start_idx
+// 	let last = -1
+
+// 	while (true) {
+// 		if (idx === end_idx) {
+// 			break
+// 		}
+// 		if (idx !== last) {
+// 			cells.push(idx)
+// 		}
+// 		last = idx
+// 		let pos = idx_num_to_vec(idx)
+// 		let angle = vec_angle(arc, pos)
+// 		let next_idx = idx
+// 		let next_dist = Infinity
+// 		for (let i = 0; i < 6; i += 1) {
+// 			let next_pos = vec_moved(pos, angle + i * PI/3, 1)
+// 			let next_idx = pos_to_idx(next_pos)
+// 			let next_dist = vec_distance(next_pos, pos)
+// 			if (next_dist < next_dist) {
+// 				next_idx = next_idx
+// 				next_dist = next_dist
+// 			}
+// 		}
+// 		idx = next_idx
+// 	}
+
+// 	return cells
+// }
 
 /**
  * @param   {number} t
