@@ -508,6 +508,98 @@ function arc_segment_intersection_point(arc, start, end) {
 }
 
 /**
+ * @param   {Arc}    arc
+ * @param   {Circle} circle
+ * @returns {boolean} */
+function arc_circle_intersecting(arc, circle) {
+	let dx   = circle.x - arc.x
+    let dy   = circle.y - arc.y
+    let dist = sqrt(dx * dx + dy * dy)
+
+	// if the circle is completely inside or outside the arc
+    if (dist < arc.r - circle.r || dist > arc.r + circle.r) {
+		return false
+    }
+
+	let start = arc.start % TAU
+	let end   = arc.end   % TAU
+
+    let start_x = arc.x + arc.r * cos(start)
+    let start_y = arc.y + arc.r * sin(start)
+    let end_x   = arc.x + arc.r * cos(end)
+    let end_y   = arc.y + arc.r * sin(end)
+
+	let diff_start_x = start_x - circle.x
+	let diff_start_y = start_y - circle.y
+	let diff_end_x   = end_x   - circle.x
+	let diff_end_y   = end_y   - circle.y
+
+    return (diff_start_x * diff_start_x + diff_start_y * diff_start_y <= circle.r * circle.r) ||
+           (diff_end_x   * diff_end_x   + diff_end_y   * diff_end_y   <= circle.r * circle.r)
+}
+
+/**
+ * @param   {Circle} A
+ * @param   {Circle} B
+ * @returns {[Vec2, Vec2, boolean]} */
+function circle_circle_intersection_point(A, B) {
+	let dx = B.x - A.x
+	let dy = B.y - A.y
+	let d = sqrt((dy*dy) + (dx*dx))
+
+	if (
+		d > (A.r + B.r) || // circles do not intersect
+		d < abs(A.r - B.r) // one circle is contained in the other
+	) {
+		return [new Vec2(), new Vec2(), false]
+	}
+
+	/*
+	C is the point where the line through the circle
+	intersection points crosses the line between the circle
+	centers.
+	*/
+
+	// the distance from A to C
+	let c = (A.r*A.r - B.r*B.r + d*d) / (2*d)
+
+	// coordinates of C
+	let cx = A.x + dx * c/d
+	let cy = A.y + dy * c/d
+
+	// the distance from C to either of the intersection points
+	let h = sqrt(A.r*A.r - c*c)
+
+	// the offsets of the intersection points from C
+	let rx = -dy * (h/d)
+	let ry =  dx * (h/d)
+
+	return [
+		vec2(cx + rx, cy + ry),
+		vec2(cx - rx, cy - ry),
+		true,
+	]
+}
+
+/**
+ * @param   {Arc} A
+ * @param   {Arc} B
+ * @returns {[Vec2, boolean]} */
+function arc_arc_intersection_point(A, B) {
+	let [p1, p2, intersecting] = circle_circle_intersection_point(A, B)
+	if (intersecting) {
+		if (angle_in_range(vec_angle(A, p1), A.start, A.end) && angle_in_range(vec_angle(B, p1), B.start, B.end)) {
+			return [p1, true]
+		}
+		if (angle_in_range(vec_angle(A, p2), A.start, A.end) && angle_in_range(vec_angle(B, p2), B.start, B.end)) {
+			return [p2, true]
+		}
+	}
+	
+	return [new Vec2(), false]
+}
+
+/**
  * @param   {Arc}             arc
  * @param   {Rect}            rect
  * @returns {[Vec2, boolean]} */
@@ -540,34 +632,75 @@ function arc_rect_intersection_point(arc, rect) {
 }
 
 /**
- * @param   {Arc}    arc
- * @param   {Circle} circle
- * @returns {boolean} */
-function arc_circle_intersecting(arc, circle) {
-	let dx   = circle.x - arc.x
-    let dy   = circle.y - arc.y
-    let dist = sqrt(dx * dx + dy * dy)
+ * @param   {Arc}             arc
+ * @param   {Rect}            rect
+ * @param   {number}          radius
+ * @returns {[Vec2, boolean]} */
+function arc_rect_rounded_intersection_point(arc, rect, radius) {
+	// check north
+	let [p, intersecting] = arc_segment_intersection_point(arc,
+		vec2(rect.x + radius         , rect.y),
+		vec2(rect.x + rect.w - radius, rect.y),
+	)
+	if (intersecting) return [p, true]
 
-	// if the circle is completely inside or outside the arc
-    if (dist < arc.r - circle.r || dist > arc.r + circle.r) {
-		return false
-    }
+	// check east
+	;[p, intersecting] = arc_segment_intersection_point(arc,
+		vec2(rect.x + rect.w         , rect.y + radius),
+		vec2(rect.x + rect.w         , rect.y + rect.h - radius),
+	)
+	if (intersecting) return [p, true]
 
-	let start = arc.start % TAU
-	let end   = arc.end   % TAU
+	// check south
+	;[p, intersecting] = arc_segment_intersection_point(arc,
+		vec2(rect.x + radius         , rect.y + rect.h),
+		vec2(rect.x + rect.w - radius, rect.y + rect.h),
+	)
+	if (intersecting) return [p, true]
 
-    let start_x = arc.x + arc.r * cos(start)
-    let start_y = arc.y + arc.r * sin(start)
-    let end_x   = arc.x + arc.r * cos(end)
-    let end_y   = arc.y + arc.r * sin(end)
+	// check west
+	;[p, intersecting] = arc_segment_intersection_point(arc,
+		vec2(rect.x                  , rect.y + radius),
+		vec2(rect.x                  , rect.y + rect.h - radius),
+	)
+	if (intersecting) return [p, true]
 
-	let diff_start_x = start_x - circle.x
-	let diff_start_y = start_y - circle.y
-	let diff_end_x   = end_x   - circle.x
-	let diff_end_y   = end_y   - circle.y
+	let corner = new Arc()
+	corner.r     = radius
 
-    return (diff_start_x * diff_start_x + diff_start_y * diff_start_y <= circle.r * circle.r) ||
-           (diff_end_x   * diff_end_x   + diff_end_y   * diff_end_y   <= circle.r * circle.r)
+	// check north-west
+	corner.x     = rect.x + radius
+	corner.y     = rect.y + radius
+	corner.start = PI
+	corner.end   = PI + PI/2
+	;[p, intersecting] = arc_arc_intersection_point(arc, corner)
+	if (intersecting) return [p, true]
+
+	// check north-east
+	corner.x     = rect.x + rect.w - radius
+	corner.y     = rect.y + radius
+	corner.start = PI + PI/2
+	corner.end   = 0
+	;[p, intersecting] = arc_arc_intersection_point(arc, corner)
+	if (intersecting) return [p, true]
+
+	// check south-east
+	corner.x     = rect.x + rect.w - radius
+	corner.y     = rect.y + rect.h - radius
+	corner.start = 0
+	corner.end   = PI/2
+	;[p, intersecting] = arc_arc_intersection_point(arc, corner)
+	if (intersecting) return [p, true]
+
+	// check south-west
+	corner.x     = rect.x + radius
+	corner.y     = rect.y + rect.h - radius
+	corner.start = PI/2
+	corner.end   = PI
+	;[p, intersecting] = arc_arc_intersection_point(arc, corner)
+	if (intersecting) return [p, true]
+
+	return [new Vec2(), false]
 }
 
 /**
@@ -617,6 +750,15 @@ function is_point_in_rect(point, rect) {
 	       point.y >= rect.y && point.y <= rect.y + rect.h
 }
 
+/**
+ * @param   {number} radius
+ * @param   {number} w_original
+ * @param   {number} w_scaled
+ * @returns {number} */
+function scale_border_radius(radius, w_original, w_scaled) {
+	return (w_scaled - (w_original - radius * 2)) / 2
+}
+
 const ORANGE = "#fcab54"
 const RED    = "#E61400"
 const BLUE   = "#0050BE"
@@ -625,10 +767,14 @@ const BLACK  = "#1a1a1a"
 
 const CELL_SIZE           = 100
 const CELL_DIAGONAL       = SQRT2 * CELL_SIZE
+
 const NODE_SIZE	          = 70
 const NODE_DIAGONAL	      = SQRT2 * NODE_SIZE
 const NODE_MARGIN	      = (CELL_SIZE - NODE_SIZE) / 2
 const NODE_SWAP_THRESHOLD = 0.5 * sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
+const NODE_BORDER_RADIUS  = 10
+const CELL_BORDER_RADIUS  = scale_border_radius(NODE_BORDER_RADIUS, NODE_SIZE, CELL_SIZE)
+
 // distance between the edge end and the node
 const EDGE_MARGIN_MIN	  = 6
 const EDGE_MARGIN_MAX	  = 12
@@ -1358,7 +1504,7 @@ function frame(s, delta) { // TODO: use delta
 
 	if (mouse_idx !== -1) {
 		let pos = idx_num_to_pos(mouse_idx)
-		draw_rect_rounded(s.ctx, rect(pos.x, pos.y, CELL_SIZE, CELL_SIZE), 10)
+		draw_rect_rounded(s.ctx, rect(pos.x, pos.y, CELL_SIZE, CELL_SIZE), CELL_BORDER_RADIUS)
 		s.ctx.fillStyle = BLACK + "10"
 		s.ctx.fill()
 	}
@@ -1383,8 +1529,10 @@ function frame(s, delta) { // TODO: use delta
 		let a_rect = node_edge_rect(edge.a, edge_dist)
 		let b_rect = node_edge_rect(edge.b, edge_dist)
 
-		let [a_intersection] = arc_rect_intersection_point(arc, a_rect)
-		let [b_intersection] = arc_rect_intersection_point(arc, b_rect)
+		let br = scale_border_radius(NODE_BORDER_RADIUS, NODE_SIZE, a_rect.w) // the same for both
+
+		let [a_intersection] = arc_rect_rounded_intersection_point(arc, a_rect, br)
+		let [b_intersection] = arc_rect_rounded_intersection_point(arc, b_rect, br)
 
 		draw_arc_between(s.ctx, a_intersection, b_intersection, arc_dist)
 		
@@ -1409,7 +1557,7 @@ function frame(s, delta) { // TODO: use delta
 		
 		vec_lerp(node.pos, goal, 0.22)
 
-		draw_rect_rounded(s.ctx, node_rect(node), 10)
+		draw_rect_rounded(s.ctx, node_rect(node), NODE_BORDER_RADIUS)
 		s.ctx.fillStyle = BLACK
 		s.ctx.fill()
 
