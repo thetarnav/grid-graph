@@ -1156,6 +1156,11 @@ function update_edge_arches(s) {
 			let arc_t = i % 2 === 0 ? i : -i + 1
 			arc_t /= 2*12
 
+			// if nodes are close, prefer the edge to be a curve
+			if (edge_dist < CELL_DIAGONAL) {
+				arc_t = 1 - arc_t
+			}
+
 			let arc_dist = edge_dist * edge_arc_t_to_multiplier(arc_t)
 			let arc = arc_between(a_pos, b_pos, arc_dist)
 
