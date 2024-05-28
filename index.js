@@ -426,6 +426,120 @@ function arc_segment_intersecting(arc, start, end) {
 }
 
 /**
+ * @param   {Circle} circle
+ * @param   {Vec2}   start
+ * @param   {Vec2}   end
+ * @returns {Vec2[]} */
+function circle_segment_intersection_points(circle, start, end) {
+    let v1x = end.x   - start.x
+    let v1y = end.y   - start.y
+    let v2x = start.x - circle.x
+    let v2y = start.y - circle.y
+
+    let b = -2 * (v1x * v2x + v1y * v2y)
+    let c =  2 * (v1x * v1x + v1y * v1y)
+    let d = sqrt(b * b - 2 * c * (v2x * v2x + v2y * v2y - circle.r * circle.r))
+
+    if (isNaN(d)) { // no intercept
+        return []
+    }
+
+	// these represent the unit distance of point one and two on the line
+    let u1 = (b - d) / c
+    let u2 = (b + d) / c
+
+	/** @type {Vec2[]} */
+	let points = []
+	
+    if (u1 <= 1 && u1 >= 0) {
+		points.push(vec2(start.x + v1x * u1, start.y + v1y * u1))
+    }
+    if (u2 <= 1 && u2 >= 0) {
+		points.push(vec2(start.x + v1x * u2, start.y + v1y * u2))
+    }       
+
+    return points
+}
+
+/**
+ * @param   {Arc}             arc
+ * @param   {Vec2}            start
+ * @param   {Vec2}            end
+ * @returns {[Vec2, boolean]} */
+function arc_segment_intersection_point(arc, start, end) {
+    let v1x = end.x   - start.x
+    let v1y = end.y   - start.y
+    let v2x = start.x - arc.x
+    let v2y = start.y - arc.y
+
+    let b = -2 * (v1x * v2x + v1y * v2y)
+    let c =  2 * (v1x * v1x + v1y * v1y)
+    let d = sqrt(b * b - 2 * c * (v2x * v2x + v2y * v2y - arc.r * arc.r))
+
+    if (isNaN(d)) { // no intercept
+        return [new Vec2(), false]
+    }
+
+	// these represent the unit distance of point one and two on the line
+    let u1 = (b - d) / c
+    let u2 = (b + d) / c
+
+	let p = new Vec2()
+	let angle = 0
+	
+    if (u1 <= 1 && u1 >= 0) {
+		p.x = start.x + v1x * u1
+		p.y = start.y + v1y * u1
+		angle = vec_angle(arc, p)
+		if (angle_in_range(angle, arc.start, arc.end)) {
+			return [p, true]
+		}
+    }
+    if (u2 <= 1 && u2 >= 0) {
+		p.x = start.x + v1x * u2
+		p.y = start.y + v1y * u2
+		angle = vec_angle(arc, p)
+		if (angle_in_range(angle, arc.start, arc.end)) {
+			return [p, true]
+		}
+    }       
+
+    return [new Vec2(), false]
+}
+
+/**
+ * @param   {Arc}             arc
+ * @param   {Rect}            rect
+ * @returns {[Vec2, boolean]} */
+function arc_rect_intersection_point(arc, rect) {
+	// check north
+	let [p, intersecting] = arc_segment_intersection_point(arc, vec2(rect.x, rect.y), vec2(rect.x + rect.w, rect.y))
+	if (intersecting) {
+		return [p, true]
+	}
+
+	// check east
+	[p, intersecting] = arc_segment_intersection_point(arc, vec2(rect.x + rect.w, rect.y), vec2(rect.x + rect.w, rect.y + rect.h))
+	if (intersecting) {
+		return [p, true]
+	}
+
+	// check south
+	[p, intersecting] = arc_segment_intersection_point(arc, vec2(rect.x + rect.w, rect.y + rect.h), vec2(rect.x, rect.y + rect.h))
+	if (intersecting) {
+		return [p, true]
+	}
+
+	// check west
+	[p, intersecting] = arc_segment_intersection_point(arc, vec2(rect.x, rect.y + rect.h), vec2(rect.x, rect.y))
+	if (intersecting) {
+		return [p, true]
+	}
+
+	return [new Vec2(), false]
+}
+
+/**
  * @param   {Arc}    arc
  * @param   {Circle} circle
  * @returns {boolean} */
@@ -515,6 +629,7 @@ const NODE_SIZE	          = 70
 const NODE_DIAGONAL	      = SQRT2 * NODE_SIZE
 const NODE_MARGIN	      = (CELL_SIZE - NODE_SIZE) / 2
 const NODE_SWAP_THRESHOLD = 0.5 * sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
+const EDGE_MARGIN		  = 10 // distance between the edge end and the node
 const GRID_WIDTH          = 12
 const GRID_ALL_CELLS      = GRID_WIDTH * GRID_WIDTH
 const DRAW_POINTS_MAX     = 32
@@ -763,6 +878,46 @@ function node_rect(node) {
 }
 
 /**
+ * @param   {number} idx
+ * @returns {Rect}   */
+function cell_rect(idx) {
+	let pos = idx_num_to_pos(idx)
+	let rect = new Rect()
+	rect.x = pos.x
+	rect.y = pos.y
+	rect.w = CELL_SIZE
+	rect.h = CELL_SIZE
+	return rect
+}
+
+/**
+ * node rect including the cell margin
+ * (same rect as the cell, just positioned by the node.pos)
+ * 
+ * @param   {Node} node 
+ * @returns {Rect} */
+function node_cell_rect(node) {
+	let rect = new Rect()
+	rect.x = node.pos.x
+	rect.y = node.pos.y
+	rect.w = CELL_SIZE
+	rect.h = CELL_SIZE
+	return rect
+}
+
+/**
+ * @param   {Node} node
+ * @returns {Rect} */
+function node_edge_rect(node) {
+	let rect = new Rect()
+	rect.x = node.pos.x + NODE_MARGIN - EDGE_MARGIN
+	rect.y = node.pos.y + NODE_MARGIN - EDGE_MARGIN
+	rect.w = NODE_SIZE + 2*EDGE_MARGIN
+	rect.h = NODE_SIZE + 2*EDGE_MARGIN
+	return rect
+}
+
+/**
  * @param   {Vec2}   pos
  * @param   {Node}   node
  * @returns {boolean} */
@@ -899,8 +1054,8 @@ function draw_rect_rounded(ctx, rect, r) {
  * @param   {number} dist
  * @returns {void}   */
 function draw_arc_between(ctx, a, b, dist) {
-	ctx.beginPath()
 	let arc = arc_between(a, b, dist)
+	ctx.beginPath()
 	ctx.arc(arc.x, arc.y, arc.r, arc.start, arc.end)
 }
 
@@ -1200,7 +1355,7 @@ function frame(s, delta) { // TODO: use delta
 
 	// Draw edges
 
-	s.ctx.lineWidth   = 4
+	s.ctx.lineWidth   = 6
 	s.ctx.lineCap     = "round"
 
 	for (let edge of s.edges) {
@@ -1208,11 +1363,20 @@ function frame(s, delta) { // TODO: use delta
 		console.assert(edge.a !== edge.b)
 		let a_pos = node_to_pos_center(edge.a)
 		let b_pos = node_to_pos_center(edge.b)
+		let dist  = vec_distance(a_pos, b_pos)
 
 		edge.arc_t_draw = lerp(edge.arc_t_draw, edge.arc_t, 0.05)
 
-		let dist = vec_distance(a_pos, b_pos) * edge_arc_t_to_multiplier(edge.arc_t_draw)
-		draw_arc_between(s.ctx, a_pos, b_pos, dist)
+		let arc_dist = dist * edge_arc_t_to_multiplier(edge.arc_t_draw)
+		let arc = arc_between(a_pos, b_pos, arc_dist)
+
+		let a_rect = node_edge_rect(edge.a)
+		let b_rect = node_edge_rect(edge.b)
+
+		let [a_intersection] = arc_rect_intersection_point(arc, a_rect)
+		let [b_intersection] = arc_rect_intersection_point(arc, b_rect)
+
+		draw_arc_between(s.ctx, a_intersection, b_intersection, arc_dist)
 		
 		s.ctx.strokeStyle = edge.intersecting_draw ? RED : ORANGE
 		s.ctx.stroke()
