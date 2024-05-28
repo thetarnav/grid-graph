@@ -463,7 +463,8 @@ function arc_circle_intersecting(arc, circle) {
  * @returns {Arc}    */
 function arc_between(a, b, dist) {
 	if (dist < 0) {
-		return arc_between(b, a, -dist)
+		[a, b] = [b, a]
+		dist   = -dist
 	}
 
 	if (dist === 0) {
