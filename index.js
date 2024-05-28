@@ -629,7 +629,9 @@ const NODE_SIZE	          = 70
 const NODE_DIAGONAL	      = SQRT2 * NODE_SIZE
 const NODE_MARGIN	      = (CELL_SIZE - NODE_SIZE) / 2
 const NODE_SWAP_THRESHOLD = 0.5 * sqrt((CELL_SIZE/2) * (CELL_SIZE/2))
-const EDGE_MARGIN		  = 10 // distance between the edge end and the node
+// distance between the edge end and the node
+const EDGE_MARGIN_MIN	  = 6
+const EDGE_MARGIN_MAX	  = 12
 const GRID_WIDTH          = 12
 const GRID_ALL_CELLS      = GRID_WIDTH * GRID_WIDTH
 const DRAW_POINTS_MAX     = 32
@@ -906,14 +908,17 @@ function node_cell_rect(node) {
 }
 
 /**
- * @param   {Node} node
+ * @param   {Node}   node
+ * @param   {number} dist edge dist
  * @returns {Rect} */
-function node_edge_rect(node) {
+function node_edge_rect(node, dist) {
+	let t = 1 - min(CELL_DIAGONAL / dist, 1)
+	let edge_margin = lerp(EDGE_MARGIN_MIN, EDGE_MARGIN_MAX, t)
 	let rect = new Rect()
-	rect.x = node.pos.x + NODE_MARGIN - EDGE_MARGIN
-	rect.y = node.pos.y + NODE_MARGIN - EDGE_MARGIN
-	rect.w = NODE_SIZE + 2*EDGE_MARGIN
-	rect.h = NODE_SIZE + 2*EDGE_MARGIN
+	rect.x = node.pos.x + NODE_MARGIN - edge_margin
+	rect.y = node.pos.y + NODE_MARGIN - edge_margin
+	rect.w = NODE_SIZE + 2*edge_margin
+	rect.h = NODE_SIZE + 2*edge_margin
 	return rect
 }
 
@@ -1368,15 +1373,15 @@ function frame(s, delta) { // TODO: use delta
 		console.assert(edge.a !== edge.b)
 		let a_pos = node_to_pos_center(edge.a)
 		let b_pos = node_to_pos_center(edge.b)
-		let dist  = vec_distance(a_pos, b_pos)
+		let edge_dist  = vec_distance(a_pos, b_pos)
 
 		edge.arc_t_draw = lerp(edge.arc_t_draw, edge.arc_t, 0.05)
 
-		let arc_dist = dist * edge_arc_t_to_multiplier(edge.arc_t_draw)
+		let arc_dist = edge_dist * edge_arc_t_to_multiplier(edge.arc_t_draw)
 		let arc = arc_between(a_pos, b_pos, arc_dist)
 
-		let a_rect = node_edge_rect(edge.a)
-		let b_rect = node_edge_rect(edge.b)
+		let a_rect = node_edge_rect(edge.a, edge_dist)
+		let b_rect = node_edge_rect(edge.b, edge_dist)
 
 		let [a_intersection] = arc_rect_intersection_point(arc, a_rect)
 		let [b_intersection] = arc_rect_intersection_point(arc, b_rect)
