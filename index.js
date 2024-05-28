@@ -546,13 +546,131 @@ class State {
 	edges         = /** @type {Edge[]} */ ([])
 }
 
+/**
+ * @param   {State} s
+ * @returns {void}  */
+function init_state_mock(s) {
+	init_empty_grid(s)
+	
+	const NODES = 16
+	s.nodes = new Array(NODES)
+	for (let i = 0; i < NODES; i += 1) {
+
+		let grid_idx = 0
+		do grid_idx = random_int(0, GRID_ALL_CELLS)
+		while (s.grid[grid_idx].id !== "")
+
+		let node         = new Node()
+		node.id          = new_id()
+		node.idx         = grid_idx
+		s.nodes[i]       = node
+		s.grid[grid_idx] = s.nodes[i]
+	}
+
+	const EDGES = 12
+	s.edges = new Array(EDGES)
+	for (let i = 0; i < EDGES; i += 1) {
+		let a_idx = random_int(0, s.nodes.length-1)
+		let b_idx = random_int(a_idx+1, s.nodes.length)
+
+		s.edges[i] = edge(s.nodes[a_idx], s.nodes[b_idx])
+	}
+
+	_state_after_init(s)
+}
+
+/**
+ * @param   {State} s
+ * @returns {void}  */
+function init_empty_grid(s) {
+	s.grid = new Array(GRID_ALL_CELLS)
+	for (let i = 0; i < GRID_ALL_CELLS; i++) {
+		s.grid[i] = new Node()
+	}
+}
+
+/**
+ * @param   {State}  s
+ * @returns {string} */
+function state_serialize(s) {
+	let nodes = []
+	for (let node of s.nodes) {
+		nodes.push(node.id)
+		nodes.push(node.idx)
+	}
+	let edges = []
+	for (let edge of s.edges) {
+		edges.push(edge.a.id)
+		edges.push(edge.b.id)
+	}
+	let arr = [nodes, edges]
+	return JSON.stringify(arr)
+}
+
+/**
+ * @param   {State}  s
+ * @param   {string} data
+ * @returns {boolean}  */
+function state_deserialize(s, data) {
+	let arr = /** @type {unknown[]} */ (JSON.parse(data))
+	if (!(Array.isArray(arr) && arr.length === 2)) return false
+
+	let nodes = /** @type {unknown[]} */ (arr[0])
+	let edges = /** @type {unknown[]} */ (arr[1])
+
+	if (!Array.isArray(nodes) || !Array.isArray(edges)) return false
+
+	if (nodes.length % 2 !== 0) return false
+	if (edges.length % 2 !== 0) return false
+
+	init_empty_grid(s)
+
+	s.nodes = []
+	for (let i = 0; i < nodes.length; i += 2) {
+		let node = new Node()
+		let id  = nodes[i+0]
+		let idx = nodes[i+1]
+		if (typeof id !== "string" || typeof idx !== "number") return false
+		node.id  = id
+		node.idx = idx
+		s.nodes.push(node)
+		s.grid[node.idx] = node
+	}
+
+	s.edges = []
+	for (let i = 0; i < edges.length; i += 2) {
+		let a_id = edges[i+0]
+		let b_id = edges[i+1]
+		if (typeof a_id !== "string" || typeof b_id !== "string") return false
+		let a = node_find(s, a_id)
+		let b = node_find(s, b_id)
+		connect_nodes(s, a, b)
+	}
+
+	_state_after_init(s)
+
+	return true
+}
+
+/**
+ * @param   {State} s
+ * @returns {void}  */
+function _state_after_init(s) {
+	update_edge_arches(s)
+
+	for (let edge of s.edges) {
+		edge.arc_t_draw = edge.arc_t
+	}
+
+	for (let node of s.nodes) {
+		node.pos = idx_num_to_pos(node.idx)
+	}
+}
+
 class Node {
 	id  = ""
 	pos = new Vec2()
 	idx = -1
-}
-function make_node() {
-	return new Node()
 }
 /**
  * @param   {State}  s
@@ -560,14 +678,36 @@ function make_node() {
  * @returns {Node}   */
 function node_at(s, idx) {
 	if (idx < 0 || idx >= GRID_ALL_CELLS) {
-		return make_node()
+		return new Node()
 	}
 	return s.grid[idx]
 }
 
+/**
+ * @param   {State}  s
+ * @param   {string} id
+ * @returns {Node}  */
+function node_find(s, id) {
+	if (id !== "") {
+		for (let node of s.nodes) {
+			if (node.id === id) {
+				return node
+			}
+		}
+	}
+	return new Node()
+}
+
+/**
+ * @param   {Node} node
+ * @returns {boolean} */
+function node_is_real(node) {
+	return node.id !== ""
+}
+
 class Edge {
-	a                 = make_node()
-	b                 = make_node()
+	a                 = new Node()
+	b                 = new Node()
 	intersecting_draw = false
 	arc_t      = 0 // actual, for calculations
 	arc_t_draw = 0 // interpolated, for drawing
@@ -930,7 +1070,7 @@ function frame(s, delta) { // TODO: use delta
 		}
 
 		// stop dragging
-		s.drag_node      = make_node()
+		s.drag_node      = new Node()
 		s.drag_start_idx = -1
 		s.dragging       = false
 		s.swaps_len      = 0
@@ -980,7 +1120,7 @@ function frame(s, delta) { // TODO: use delta
 		if (mouse_in_center || mouse_node.id === "") {
 			if (mouse_idx === -1) {
 				// stop dragging that node
-				s.drag_node = make_node()
+				s.drag_node = new Node()
 				break
 			}
 
@@ -1163,40 +1303,33 @@ function main() {
 	s.window_width  = window.innerWidth
 	s.window_height = window.innerHeight
 
-	s.grid = Array.from({length: GRID_ALL_CELLS}, make_node)
-
-	const NODES = 16
-	s.nodes = new Array(NODES)
-	for (let i = 0; i < NODES; i += 1) {
-
-		let grid_idx = 0
-		do grid_idx = random_int(0, GRID_ALL_CELLS)
-		while (s.grid[grid_idx].id !== "")
-
-		let node         = make_node()
-		node.id          = new_id()
-		node.idx         = grid_idx
-		node.pos         = idx_num_to_pos(grid_idx)
-		s.nodes[i]       = node
-		s.grid[grid_idx] = s.nodes[i]
-	}
-
-	const EDGES = 12
-	for (let i = 0; i < EDGES; i += 1) {
-		let a_idx = random_int(0, s.nodes.length-1)
-		let b_idx = random_int(a_idx+1, s.nodes.length)
-
-		connect_nodes(s, s.nodes[a_idx], s.nodes[b_idx])
-	}
-
-	update_edge_arches(s)
-
-	for (let edge of s.edges) {
-		edge.arc_t_draw = edge.arc_t
+	let serialized_state = localStorage.getItem("state")
+	if (serialized_state && state_deserialize(s, serialized_state)) {
+		// already initialized
+	} else {
+		init_state_mock(s)
 	}
 
 	// @ts-ignore
 	window.state = s
+
+	// serialize state on unload
+	window.addEventListener("beforeunload", () => {
+		localStorage.setItem("state", state_serialize(s))
+	})
+
+	// button for reseting state
+	const reset_button = document.createElement("button")
+	reset_button.textContent = "Reset"
+	reset_button.style.position = "absolute"
+	reset_button.style.top = "10px"
+	reset_button.style.left = "10px"
+	reset_button.addEventListener("click", () => {
+		localStorage.removeItem("state")
+		init_state_mock(s)
+	})
+	document.body.appendChild(reset_button)
+	
 
 	void requestAnimationFrame(prev_time => {
 		/** @type {FrameRequestCallback} */
