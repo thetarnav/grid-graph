@@ -617,7 +617,7 @@ function is_point_in_rect(point, rect) {
 	       point.y >= rect.y && point.y <= rect.y + rect.h
 }
 
-const ORANGE = "#FFCD73"
+const ORANGE = "#fcab54"
 const RED    = "#E61400"
 const BLUE   = "#0050BE"
 const WHITE  = "#f6eee0"
