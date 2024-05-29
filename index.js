@@ -778,14 +778,34 @@ const CELL_BORDER_RADIUS  = scale_border_radius(NODE_BORDER_RADIUS, NODE_SIZE, C
 // distance between the edge end and the node
 const EDGE_MARGIN_MIN	  = 6
 const EDGE_MARGIN_MAX	  = 12
-const GRID_WIDTH          = 12
-const GRID_ALL_CELLS      = GRID_WIDTH * GRID_WIDTH
+const GRID_W_CELLS        = 64
+const GRID_ALL_CELLS      = GRID_W_CELLS * GRID_W_CELLS
 const DRAW_POINTS_MAX     = 32
 
 
 /** @typedef {CanvasRenderingContext2D} Ctx2D */
 
+/** @enum {typeof Interaction_Mode[keyof typeof Interaction_Mode]} */
+const Interaction_Mode = /** @type {const} */({
+	Default:   0,
+	Drag_Node: 1,
+	Draw:      2,
+})
+/** @type {Record<Interaction_Mode, string>} */
+const interaction_mode_string_map = {
+	[Interaction_Mode.Default]:   "Default",
+	[Interaction_Mode.Drag_Node]: "Drag Node",
+	[Interaction_Mode.Draw]:      "Draw",
+}
+/**
+ * @param   {Interaction_Mode} mode
+ * @returns {string} */
+function interaction_mode_string(mode) {
+	return interaction_mode_string_map[mode]
+}
+
 class State {
+	// inputs
 	ctx           = /** @type {Ctx2D} */ (/** @type {*} */ (null))
 	canvas_top    = 0
 	canvas_left   = 0
@@ -796,18 +816,19 @@ class State {
 	dpr           = 0
 	mouse         = new Vec2()
 	mouse_down    = false
+	// serializable state
+	nodes         = /** @type {Node[]} */ ([])
+	edges         = /** @type {Edge[]} */ ([])
+	// temporary state
+	grid          = /** @type {Node[]} */ ([])
+	mode		  = /** @type {Interaction_Mode} */ (Interaction_Mode.Default)
+	camera_pos	  = new Vec2()
 	drag_node     = new Node()
 	drag_start_idx= -1
-	dragging      = false // dragging bool is separate from drag_idx,
-	                      // because drag_idx is set to -1 when the drag is stopped for any reason
 	swaps         = /** @type {number[]} */(new Array(100))
 	swaps_len     = 0
 	draw_points   = new Float64Array(DRAW_POINTS_MAX)
 	draw_len	  = 0
-	drawing	      = false
-	nodes         = /** @type {Node[]} */ ([])
-	grid          = /** @type {Node[]} */ ([])
-	edges         = /** @type {Edge[]} */ ([])
 }
 
 /**
@@ -1097,8 +1118,8 @@ function new_id() {
  * @returns {Vec2}   */
 function idx_num_to_vec(index) {
 	const vec = new Vec2()
-	vec.x = index % GRID_WIDTH
-	vec.y = floor(index / GRID_WIDTH)
+	vec.x = index % GRID_W_CELLS
+	vec.y = floor(index / GRID_W_CELLS)
 	return vec
 }
 
@@ -1106,7 +1127,7 @@ function idx_num_to_vec(index) {
  * @param   {Vec2}   pos
  * @returns {number} */
 function idx_vec_to_num(pos) {
-	return pos.y * GRID_WIDTH + pos.x
+	return pos.y * GRID_W_CELLS + pos.x
 }
 
 /**
@@ -1114,14 +1135,14 @@ function idx_vec_to_num(pos) {
  * @returns {number} */
 function pos_to_idx(pos) {
 	let x = floor(pos.x / CELL_SIZE)
-	if (x < 0 || x >= GRID_WIDTH) {
+	if (x < 0 || x >= GRID_W_CELLS) {
 		return -1
 	}
 	let y = floor((pos.y - (x+1) % 2 * CELL_SIZE/2) / CELL_SIZE)
-	if (y < 0 || y >= GRID_WIDTH) {
+	if (y < 0 || y >= GRID_W_CELLS) {
 		return -1
 	}
-	return y * GRID_WIDTH + x
+	return y * GRID_W_CELLS + x
 }
 
 /**
@@ -1138,7 +1159,7 @@ function idx_vec_to_pos(idx) {
 function idx_num_to_pos(idx) {
 	const pos = idx_num_to_vec(idx)
 	vec_mul_scalar(pos, CELL_SIZE)
-	pos.y += CELL_SIZE/2 * ((idx % GRID_WIDTH + 1) % 2)
+	pos.y += CELL_SIZE/2 * ((idx % GRID_W_CELLS + 1) % 2)
 	return pos
 }
 /**
@@ -1358,77 +1379,44 @@ function frame(s, delta) { // TODO: use delta
 	let mouse_node_center = idx_num_to_pos_center(mouse_idx)
 	let mouse_in_center   = vec_distance(mouse_node_center, s.mouse) < NODE_SWAP_THRESHOLD
 
-	switch (true) {
-	case s.mouse_down && !s.dragging && !s.drawing:
+	switch (s.mode) {
+	case Interaction_Mode.Default:
+		if (!s.mouse_down) break
 
 		// is hoverig node
 		if (mouse_node.id !== "" && is_pos_in_node(s.mouse, mouse_node)) {
 			// start dragging
 			s.drag_node      = mouse_node
 			s.drag_start_idx = mouse_idx
-			s.dragging       = true
+			s.mode           = Interaction_Mode.Drag_Node
 		} else {
 			// start drawing
-			s.drawing = true
+			s.mode = Interaction_Mode.Draw
 			add_draw_point(s, s.mouse.x, s.mouse.y)
 		}
 
 		break
-	case !s.mouse_down && s.dragging:
-		// add connection
-		if (!is_connected(s, s.drag_node, mouse_node)) {
-			connect_nodes(s, s.drag_node, mouse_node)
-			update_edge_arches(s)
-		}
-
-		// stop dragging
-		s.drag_node      = new Node()
-		s.drag_start_idx = -1
-		s.dragging       = false
-		s.swaps_len      = 0
-		break
-	case s.mouse_down && s.drawing:
-		// continue drawing
-		add_draw_point(s, s.mouse.x, s.mouse.y)
-
-		// check collisions with edges
-
-		let start_x = s.draw_points[s.draw_len-4]
-		let start_y = s.draw_points[s.draw_len-3]
-		let end_x   = s.draw_points[s.draw_len-2]
-		let end_y   = s.draw_points[s.draw_len-1]
-
-		let start = vec2(start_x, start_y)
-		let end   = vec2(end_x, end_y)
-
-		for (let edge of s.edges) {
-			let a_pos = node_to_pos_center(edge.a)
-			let b_pos = node_to_pos_center(edge.b)
-
-			if (!edge.intersecting_draw) {
-				// edge.intersecting_draw = segments_intersecting(start, end, a_pos, b_pos)
-
-				let dist = vec_distance(a_pos, b_pos) * edge_arc_t_to_multiplier(edge.arc_t_draw)
-				let arc = arc_between(a_pos, b_pos, dist)
-				edge.intersecting_draw = arc_segment_intersecting(arc, start, end)
+	case Interaction_Mode.Drag_Node:
+		if (!s.mouse_down) {
+			// add connection
+			if (!is_connected(s, s.drag_node, mouse_node)) {
+				connect_nodes(s, s.drag_node, mouse_node)
+				update_edge_arches(s)
 			}
-		}
-		break
-	case !s.mouse_down && s.draw_len > 0:
-		// stop drawing
-		s.draw_len = 0
-		s.drawing  = false
 
-		// cut edges
-		for (let i = s.edges.length - 1; i >= 0; i -= 1) {
-			if (s.edges[i].intersecting_draw) {
-				s.edges.splice(i, 1)
-			}
+			// stop dragging
+			s.drag_node      = new Node()
+			s.drag_start_idx = -1
+			s.mode           = Interaction_Mode.Default
+			s.swaps_len      = 0
+
+			break
 		}
 
-		break
-	case s.mouse_down && s.drag_node.idx !== -1 && mouse_node.idx !== s.drag_node.idx:
-
+		if (s.drag_node.idx === -1 || mouse_node.idx === s.drag_node.idx) {
+			break
+		}
+		
 		if (mouse_in_center || mouse_node.id === "") {
 			if (mouse_idx === -1) {
 				// stop dragging that node
@@ -1484,6 +1472,50 @@ function frame(s, delta) { // TODO: use delta
 			s.ctx.lineWidth   = 8
 			s.ctx.lineCap     = "round"
 			s.ctx.stroke()
+		}
+
+		break
+	case Interaction_Mode.Draw:
+		if (!s.mouse_down) {
+			// stop drawing
+			s.draw_len = 0
+			s.mode     = Interaction_Mode.Default
+
+			// cut edges
+			for (let i = s.edges.length - 1; i >= 0; i -= 1) {
+				if (s.edges[i].intersecting_draw) {
+					s.edges.splice(i, 1)
+				}
+			}
+
+			break
+		}
+
+		
+		// continue drawing
+		add_draw_point(s, s.mouse.x, s.mouse.y)
+
+		// check collisions with edges
+
+		let start_x = s.draw_points[s.draw_len-4]
+		let start_y = s.draw_points[s.draw_len-3]
+		let end_x   = s.draw_points[s.draw_len-2]
+		let end_y   = s.draw_points[s.draw_len-1]
+
+		let start = vec2(start_x, start_y)
+		let end   = vec2(end_x, end_y)
+
+		for (let edge of s.edges) {
+			let a_pos = node_to_pos_center(edge.a)
+			let b_pos = node_to_pos_center(edge.b)
+
+			if (!edge.intersecting_draw) {
+				// edge.intersecting_draw = segments_intersecting(start, end, a_pos, b_pos)
+
+				let dist = vec_distance(a_pos, b_pos) * edge_arc_t_to_multiplier(edge.arc_t_draw)
+				let arc = arc_between(a_pos, b_pos, dist)
+				edge.intersecting_draw = arc_segment_intersecting(arc, start, end)
+			}
 		}
 
 		break
@@ -1589,13 +1621,15 @@ function frame(s, delta) { // TODO: use delta
 		s.ctx.font         = "16px monospace"
 		s.ctx.textAlign    = "left"
 		s.ctx.textBaseline = "top"
-		s.ctx.fillText(`mouse:           ${vec_string(s.mouse)}`, margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`mouse_idx:       ${mouse_idx}`          , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`mouse_down:      ${s.mouse_down}`       , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`drag_node_idx:   ${s.drag_node.idx}`    , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`mouse_in_center: ${mouse_in_center}`    , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mode:            ${interaction_mode_string(s.mode)}`, margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`camera:          ${vec_string(s.camera_pos)}`       , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse:           ${vec_string(s.mouse)}`            , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_idx:       ${mouse_idx}`                      , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_down:      ${s.mouse_down}`                   , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`drag_node_idx:   ${s.drag_node.idx}`                , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_in_center: ${mouse_in_center}`                , margin, margin + (text_i++) * 20)
 
-		let swaps_text = "swaps:         "
+		let swaps_text = "swaps:           "
 		if (s.swaps_len === 0) {
 			swaps_text += "none"
 		}
