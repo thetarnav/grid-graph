@@ -77,12 +77,22 @@ function exp_decay(a, b, decay, dt = DT_FIXED) {
 }
 
 /**
- * @param   {number} value
- * @param   {number} target
+ * @param   {number} a
+ * @param   {number} b
  * @param   {number} max_delta
  * @returns {number} */
-function move_towards(value, target, max_delta) {
-	return value + sign(target - value) * min(abs(target - value), max_delta)
+function move_towards(a, b, max_delta) {
+	let d = b - a
+	return a + sign(d) * min(abs(d), max_delta)
+}
+
+/**
+ * @param   {number}  value 
+ * @param   {number}  min inclusive
+ * @param   {number}  max exclusive
+ * @returns {boolean} */
+function in_range(value, min, max) {
+	return value >= min && value < max
 }
 
 class Vec2 {
@@ -761,7 +771,7 @@ function arc_between(a, b, dist) {
  * @param   {Vec2}    point
  * @param   {Rect}    rect
  * @returns {boolean} */
-function is_point_in_rect(point, rect) {
+function vec_in_rect(point, rect) {
 	return point.x >= rect.x && point.x <= rect.x + rect.w &&
 	       point.y >= rect.y && point.y <= rect.y + rect.h
 }
@@ -798,22 +808,28 @@ const GRID_W_CELLS        = 64
 const GRID_ALL_CELLS      = GRID_W_CELLS * GRID_W_CELLS
 const DRAW_POINTS_MAX     = 32
 
+const GRID_WIDTH          = GRID_W_CELLS * CELL_SIZE
+
+const GRID_RECT = rect(0, 0, GRID_WIDTH, GRID_WIDTH)
+
 
 /** @typedef {CanvasRenderingContext2D} Ctx2D */
 
 /** @enum {typeof Interaction_Mode[keyof typeof Interaction_Mode]} */
 const Interaction_Mode = /** @type {const} */({
-	Default:   0,
-	Drag_Node: 1,
-	Draw:      2,
-	Move:      3,
+	Move:  0,
+	Edit:  1,
+	Drag:  2,
+	Draw:  3,
+	Space: 4,
 })
 /** @type {Record<Interaction_Mode, string>} */
 const interaction_mode_string_map = {
-	[Interaction_Mode.Default]:   "Default",
-	[Interaction_Mode.Drag_Node]: "Drag Node",
-	[Interaction_Mode.Draw]:      "Draw",
-	[Interaction_Mode.Move]:      "Move",
+	[Interaction_Mode.Move]:  "Move",
+	[Interaction_Mode.Edit]:  "Edit",
+	[Interaction_Mode.Drag]:  "Drag",
+	[Interaction_Mode.Draw]:  "Draw",
+	[Interaction_Mode.Space]: "Space",
 }
 /**
  * @param   {Interaction_Mode} mode
@@ -835,12 +851,13 @@ class State {
 	mouse         = new Vec2()
 	mouse_down    = false
 	space_down    = false
+	edit_down     = false
 	// serializable state
 	nodes         = /** @type {Node[]} */ ([])
 	edges         = /** @type {Edge[]} */ ([])
 	// temporary state
 	grid          = /** @type {Node[]} */ ([])
-	mode		  = /** @type {Interaction_Mode} */ (Interaction_Mode.Default)
+	mode          = /** @type {Interaction_Mode} */ (Interaction_Mode.Move)
 	mouse_prev    = /** @type {null | Vec2} */ (null) // used by move mode
 	camera_pos	  = new Vec2()
 	drag_node     = new Node()
@@ -848,7 +865,7 @@ class State {
 	swaps         = /** @type {number[]} */(new Array(100))
 	swaps_len     = 0
 	draw_points   = new Float64Array(DRAW_POINTS_MAX)
-	draw_len	  = 0
+	draw_len      = 0
 }
 
 /**
@@ -972,7 +989,7 @@ function _state_after_init(s) {
 	}
 
 	// move the camera to the center of the grid
-	s.camera_pos = vec2(GRID_W_CELLS * CELL_SIZE / 2, GRID_W_CELLS * CELL_SIZE / 2)
+	s.camera_pos = vec2(GRID_WIDTH / 2, GRID_WIDTH / 2)
 }
 
 class Node {
@@ -1116,9 +1133,9 @@ function node_edge_rect(node, dist) {
  * @param   {Vec2}   pos
  * @param   {Node}   node
  * @returns {boolean} */
-function is_pos_in_node(pos, node) {
+function vec_in_node(pos, node) {
 	let rect = node_rect(node)
-	return is_point_in_rect(pos, rect)
+	return vec_in_rect(pos, rect)
 }
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -1390,46 +1407,100 @@ function update_edge_arches(s) {
 }
 
 /**
+ * @param   {State} s
+ * @returns {void}  */
+function handle_move_camera(s) {
+	if (s.mouse_down) {
+		if (s.mouse_prev === null) {
+			s.mouse_prev = new Vec2()
+		} else {
+			s.camera_pos.x += s.mouse_prev.x - s.mouse.x
+			s.camera_pos.y += s.mouse_prev.y - s.mouse.y
+		}
+		s.mouse_prev.x = s.mouse.x
+		s.mouse_prev.y = s.mouse.y
+	} else {
+		s.mouse_prev = null
+	}
+}
+
+/**
  * @param   {State } s 
  * @param   {number} dt 
  * @returns {void}   */
 function frame(s, dt) {
 
-	let mouse_in_grid = vec2(
+	let canvas_rect = rect(s.canvas_left, s.canvas_top, s.canvas_width, s.canvas_height)
+	let mouse_in_canvas = vec_in_rect(s.mouse, canvas_rect)
+
+	let mouse_grid = vec2(
 		(s.mouse.x - s.canvas_left) * s.dpr + s.camera_pos.x,
 		(s.mouse.y - s.canvas_top ) * s.dpr + s.camera_pos.y,
 	)
 
-	let mouse_idx  = pos_to_idx(mouse_in_grid)
+	let mouse_idx  = pos_to_idx(mouse_grid)
 	let mouse_node = node_at(s, mouse_idx)
 
 	let mouse_node_center = idx_num_to_pos_center(mouse_idx)
-	let mouse_in_center   = vec_distance(mouse_node_center, mouse_in_grid) < NODE_SWAP_THRESHOLD
+	let mouse_in_center   = vec_distance(mouse_node_center, mouse_grid) < NODE_SWAP_THRESHOLD
 
 	switch (s.mode) {
-	case Interaction_Mode.Default:
-		if (s.mouse_down) {
-			// is hoverig node
-			if (mouse_node.id !== "" && is_pos_in_node(mouse_in_grid, mouse_node)) {
-				// start dragging
-				s.drag_node      = mouse_node
-				s.drag_start_idx = mouse_idx
-				s.mode           = Interaction_Mode.Drag_Node
-			} else {
-				// start drawing
-				s.mode = Interaction_Mode.Draw
-				add_draw_point(s, mouse_in_grid.x, mouse_in_grid.y)
-			}
+	case Interaction_Mode.Move:
+		if (s.edit_down) {
+			s.mouse_prev = null
+			s.mode = Interaction_Mode.Edit
 			break
 		}
 
-		if (s.space_down) {
+		handle_move_camera(s)
+		break
+	case Interaction_Mode.Space:
+		if (!s.space_down) {
+			s.mouse_prev = null
+			s.mode = Interaction_Mode.Edit
+			break
+		}
+
+		handle_move_camera(s)
+		break
+	case Interaction_Mode.Edit:
+		if (!s.edit_down) {
 			s.mode = Interaction_Mode.Move
 			break
 		}
 
+		if (s.space_down) {
+			s.mode = Interaction_Mode.Space
+			break
+		}
+
+		if (s.mouse_down && mouse_in_canvas) {
+			// is hoverig node
+			if (mouse_node.id !== "" && vec_in_node(mouse_grid, mouse_node)) {
+				// start dragging
+				s.drag_node      = mouse_node
+				s.drag_start_idx = mouse_idx
+				s.mode           = Interaction_Mode.Drag
+			} else {
+				// start drawing
+				s.mode = Interaction_Mode.Draw
+				add_draw_point(s, mouse_grid.x, mouse_grid.y)
+			}
+			break
+		}
+
 		break
-	case Interaction_Mode.Drag_Node:
+	case Interaction_Mode.Drag:
+		if (s.space_down) {
+			// stop dragging
+			s.drag_node      = new Node()
+			s.drag_start_idx = -1
+			s.swaps_len      = 0
+			s.mode           = Interaction_Mode.Space
+
+			break
+		}
+
 		if (!s.mouse_down) {
 			// add connection
 			if (!is_connected(s, s.drag_node, mouse_node)) {
@@ -1440,8 +1511,8 @@ function frame(s, dt) {
 			// stop dragging
 			s.drag_node      = new Node()
 			s.drag_start_idx = -1
-			s.mode           = Interaction_Mode.Default
 			s.swaps_len      = 0
+			s.mode           = Interaction_Mode.Edit
 
 			break
 		}
@@ -1496,10 +1567,23 @@ function frame(s, dt) {
 
 		break
 	case Interaction_Mode.Draw:
+		if (s.space_down) {
+			// stop drawing
+			s.draw_len = 0
+			s.mode     = Interaction_Mode.Space
+
+			// cancel cut edges
+			for (let edge of s.edges) {
+				edge.intersecting_draw = false
+			}
+
+			break
+		}
+
 		if (!s.mouse_down) {
 			// stop drawing
 			s.draw_len = 0
-			s.mode     = Interaction_Mode.Default
+			s.mode     = Interaction_Mode.Edit
 
 			// cut edges
 			for (let i = s.edges.length - 1; i >= 0; i -= 1) {
@@ -1513,7 +1597,7 @@ function frame(s, dt) {
 
 		
 		// continue drawing
-		add_draw_point(s, mouse_in_grid.x, mouse_in_grid.y)
+		add_draw_point(s, mouse_grid.x, mouse_grid.y)
 
 		// check collisions with edges
 
@@ -1536,27 +1620,6 @@ function frame(s, dt) {
 				let arc = arc_between(a_pos, b_pos, dist)
 				edge.intersecting_draw = arc_segment_intersecting(arc, start, end)
 			}
-		}
-
-		break
-	case Interaction_Mode.Move:
-		if (!s.space_down) {
-			s.mouse_prev = null
-			s.mode = Interaction_Mode.Default
-			break
-		}
-
-		if (s.mouse_down) {
-			if (s.mouse_prev === null) {
-				s.mouse_prev = new Vec2()
-			} else {
-				s.camera_pos.x += s.mouse_prev.x - s.mouse.x
-				s.camera_pos.y += s.mouse_prev.y - s.mouse.y
-			}
-			s.mouse_prev.x = s.mouse.x
-			s.mouse_prev.y = s.mouse.y
-		} else {
-			s.mouse_prev = null
 		}
 
 		break
@@ -1631,7 +1694,7 @@ function frame(s, dt) {
 		// keep dragged node on mouse pos
 		// and the rest, snapped to grid
 		let goal = s.drag_node === node
-			? vec_diff_scalar(mouse_in_grid, CELL_SIZE/2)
+			? vec_diff_scalar(mouse_grid, CELL_SIZE/2)
 			: idx_num_to_pos(node.idx)
 		
 		vec_exp_decay(node.pos, goal, 0.22, dt)
@@ -1673,10 +1736,11 @@ function frame(s, dt) {
 		s.ctx.fillText(`mode:            ${interaction_mode_string(s.mode)}`, margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`camera:          ${vec_string(s.camera_pos)}`       , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse:           ${vec_string(s.mouse)}`            , margin, margin + (text_i++) * 20)
-		s.ctx.fillText(`mouse_in_grid:   ${vec_string(mouse_in_grid)}`      , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_grid:      ${vec_string(mouse_grid)}`         , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_idx:       ${mouse_idx}`                      , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_down:      ${s.mouse_down}`                   , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`drag_node_idx:   ${s.drag_node.idx}`                , margin, margin + (text_i++) * 20)
+		s.ctx.fillText(`mouse_in_canvas: ${mouse_in_canvas}`                , margin, margin + (text_i++) * 20)
 		s.ctx.fillText(`mouse_in_center: ${mouse_in_center}`                , margin, margin + (text_i++) * 20)
 
 		let swaps_text = "swaps:           "
@@ -1725,17 +1789,38 @@ function main() {
 		localStorage.setItem("state", state_serialize(s))
 	})
 
-	// button for reseting state
-	const reset_button = document.createElement("button")
-	reset_button.textContent = "Reset"
-	reset_button.style.position = "absolute"
-	reset_button.style.top = "10px"
-	reset_button.style.left = "10px"
-	reset_button.addEventListener("click", () => {
-		localStorage.removeItem("state")
-		init_state_mock(s)
-	})
-	document.body.appendChild(reset_button)
+	let buttons = document.createElement("div")
+	buttons.style.position = "absolute"
+	buttons.style.top      = "10px"
+	buttons.style.left     = "10px"
+	buttons.style.display  = "flex"
+	buttons.style.gap	   = "10px"
+	document.body.appendChild(buttons)
+
+
+	{   // button for reseting state
+		const reset_button = document.createElement("button")
+		reset_button.textContent = "Reset"
+		reset_button.addEventListener("click", () => {
+			localStorage.removeItem("state")
+			init_state_mock(s)
+		})
+		buttons.appendChild(reset_button)
+	}
+
+	{   // checkbox button for edit/move mode
+		let edit_label = document.createElement("label")
+		edit_label.textContent = "Edit" 
+		let edit_checkbox = document.createElement("input")
+		edit_checkbox.type = "checkbox"
+		edit_checkbox.name = "mode"
+		edit_checkbox.id  = "edit"
+		edit_checkbox.addEventListener("change", () => {
+			s.edit_down = edit_checkbox.checked
+		})
+		edit_label.appendChild(edit_checkbox)
+		buttons.appendChild(edit_label)
+	}
 	
 
 	void requestAnimationFrame(prev_time => {
