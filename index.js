@@ -17,6 +17,7 @@ const round  = Math.round
 const random = Math.random
 const pow    = Math.pow
 const hypot  = Math.hypot
+const exp    = Math.exp
 
 /**
  * @param   {number} a 
@@ -53,13 +54,26 @@ function random_int(min, max) {
 	return floor(random() * (max - min) + min)
 }
 
+
 /**
  * @param   {number} a
  * @param   {number} b
  * @param   {number} t
  * @returns {number} */
 function lerp(a, b, t) {
-	return a + (b - a) * t
+	return a + (b-a) * t
+}
+
+const DT_FIXED = 16.666666666666668
+
+/**
+ * @param   {number} a
+ * @param   {number} b
+ * @param   {number} decay
+ * @param   {number} [dt]
+ * @returns {number} */
+function exp_decay(a, b, decay, dt = DT_FIXED) {
+	return b + (a-b) * exp(-decay * (dt/DT_FIXED))
 }
 
 /**
@@ -271,12 +285,14 @@ function vec_lerp(a, b, t) {
 	a.y = lerp(a.y, b.y, t)
 }
 /**
- * @param   {Vec2}   a
+ * @param   {Vec2}   a receiving
  * @param   {Vec2}   b
- * @param   {number} t
- * @returns {Vec2}   */
-function vec_lerped(a, b, t) {
-	return vec2(lerp(a.x, b.x, t), lerp(a.y, b.y, t))
+ * @param   {number} decay
+ * @param   {number} [dt]
+ * @returns {void}   */
+function vec_exp_decay(a, b, decay, dt) {
+	a.x = exp_decay(a.x, b.x, decay, dt)
+	a.y = exp_decay(a.y, b.y, decay, dt)
 }
 /**
  * @param   {Vec2}   a
@@ -1302,7 +1318,7 @@ function add_draw_point(s, x, y) {
  * @returns {number} */
 function edge_arc_t_to_multiplier(t) {
 	let m = abs(t)
-	m = 1 - Math.pow(2, -11 * m) // ease out
+	m = 1 - pow(2, -11 * m) // ease out
 	m = 20 * (1-m) + 0.1
 	if (t < 0) {
 		m = -m
@@ -1375,9 +1391,9 @@ function update_edge_arches(s) {
 
 /**
  * @param   {State } s 
- * @param   {number} delta 
+ * @param   {number} dt 
  * @returns {void}   */
-function frame(s, delta) { // TODO: use delta
+function frame(s, dt) {
 
 	let mouse_in_grid = vec2(
 		(s.mouse.x - s.canvas_left) * s.dpr + s.camera_pos.x,
@@ -1584,7 +1600,7 @@ function frame(s, delta) { // TODO: use delta
 		let b_pos = node_to_pos_center(edge.b)
 		let edge_dist  = vec_distance(a_pos, b_pos)
 
-		edge.arc_t_draw = lerp(edge.arc_t_draw, edge.arc_t, 0.05)
+		edge.arc_t_draw = exp_decay(edge.arc_t_draw, edge.arc_t, 0.05, dt)
 
 		let arc_dist = edge_dist * edge_arc_t_to_multiplier(edge.arc_t_draw)
 		let arc = arc_between(a_pos, b_pos, arc_dist)
@@ -1618,7 +1634,7 @@ function frame(s, delta) { // TODO: use delta
 			? vec_diff_scalar(mouse_in_grid, CELL_SIZE/2)
 			: idx_num_to_pos(node.idx)
 		
-		vec_lerp(node.pos, goal, 0.22)
+		vec_exp_decay(node.pos, goal, 0.22, dt)
 
 		draw_rect_rounded(s.ctx, node_rect(node), NODE_BORDER_RADIUS)
 		s.ctx.fillStyle = BLACK
