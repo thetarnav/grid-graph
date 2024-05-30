@@ -1853,28 +1853,45 @@ function main() {
 	on_canvas_resize()
 	window.addEventListener("resize", on_canvas_resize)
 
-	window.addEventListener("pointermove", e => {
+	document.addEventListener("pointermove", e => {
 		s.mouse.x = e.clientX
 		s.mouse.y = e.clientY
 	})
-	window.addEventListener("pointerdown", e => {
+	canvas.addEventListener("pointerdown", e => {
 		s.mouse_down = true
 		s.mouse.x = e.clientX
 		s.mouse.y = e.clientY
 	})
-	window.addEventListener("pointerup", e => {
-		s.mouse_down = false
+	document.addEventListener("pointerup", e => {
+		s.mouse_down = false	
 	})
-	window.addEventListener("keydown", e => {
+	document.addEventListener("keydown", e => {
 		switch (e.key) {
 		case " ": s.space_down = true ;break
 		}
 	})
-	window.addEventListener("keyup", e => {
+	document.addEventListener("keyup", e => {
 		switch (e.key) {
 		case " ": s.space_down = false ;break
 		}
 	})
+
+	/*
+
+	prevent scrolling on touch devices
+
+	*/
+
+	/**
+	 * @param   {Event} e 
+	 * @returns {void}  */
+	function preventCancelable(e) {
+		if (e.cancelable) e.preventDefault()
+	}
+	const NOT_PASSIVE = {passive: false}
+
+	canvas.addEventListener("touchstart", preventCancelable, NOT_PASSIVE)
+	canvas.addEventListener("touchmove" , preventCancelable, NOT_PASSIVE)
 }
 main()
 
