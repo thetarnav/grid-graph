@@ -1,5 +1,5 @@
 # Grid Graph
 
-Just a cool ui experiment with a connections graph restricted to a grid.
+UI experiment making a graph of nodes and connections on a grid.
 
 https://thetarnav.github.io/grid-graph
