@@ -1894,28 +1894,3 @@ function main() {
 	canvas.addEventListener("touchmove" , preventCancelable, NOT_PASSIVE)
 }
 main()
-
-/*
-on_mouse_move :: proc(e: dom.Event) {
-	mouse_pos = cast_vec2(e.mouse.client)
-	mouse_rel = rvec2((mouse_pos - window_size / 2) / window_size)
-}
-on_mouse_down :: proc(e: dom.Event) {
-	mouse_down = true
-}
-on_mouse_up :: proc(e: dom.Event) {
-	mouse_down = false
-}
-on_wheel :: proc(e: dom.Event) {
-	scale -= f32(e.wheel.delta.y) * 0.001
-	scale = clamp(scale, 0, 1)
-}
-@export
-on_window_resize :: proc "c" (vw, vh, cw, ch, cx, cy: f32) {
-	window_size  = {vw, vh}
-	canvas_size  = {cw, ch}
-	canvas_pos   = {cx, cy}
-	canvas_res   = cast_ivec2(canvas_size * dpr)
-	aspect_ratio = canvas_size.x / canvas_size.y
-}
-*/
